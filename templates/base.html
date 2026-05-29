@@ -1,0 +1,421 @@
+<!doctype html>
+<html lang="fr" class="h-full">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}KargoSmart{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+      body {
+        font-family: "Inter", system-ui, sans-serif;
+      }
+      .gps-marker-livreur {
+        font-size: 24px;
+        filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+      }
+      .gps-marker-depart {
+        font-size: 22px;
+      }
+      .gps-marker-arrivee {
+        font-size: 22px;
+      }
+      #toast-container {
+        position: fixed;
+        bottom: 1.5rem;
+        right: 1.5rem;
+        z-index: 9999;
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+        pointer-events: none;
+      }
+      .toast {
+        padding: 0.75rem 1.25rem;
+        border-radius: 0.75rem;
+        color: #fff;
+        font-size: 0.875rem;
+        font-weight: 500;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        animation: slideIn 0.3s ease;
+        pointer-events: auto;
+      }
+      .toast-success {
+        background: linear-gradient(135deg, #22c55e, #16a34a);
+      }
+      .toast-error {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+      }
+      .toast-info {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+      }
+      @keyframes slideIn {
+        from {
+          transform: translateX(110%);
+          opacity: 0;
+        }
+        to {
+          transform: translateX(0);
+          opacity: 1;
+        }
+      }
+      /* Scrollbar fine */
+      ::-webkit-scrollbar {
+        width: 5px;
+        height: 5px;
+      }
+      ::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #cbd5e1;
+        border-radius: 99px;
+      }
+    </style>
+    {% block extra_head %}{% endblock %}
+  </head>
+  <body class="h-full bg-slate-100">
+    <div class="flex h-full min-h-screen">
+      <!-- Sidebar -->
+      <aside
+        id="sidebar"
+        class="fixed inset-y-0 left-0 z-30 w-60 bg-slate-900 shadow-2xl transition-transform duration-300 -translate-x-full lg:static lg:translate-x-0 flex flex-col flex-shrink-0"
+      >
+        {% include 'components/sidebar.html' %}
+      </aside>
+
+      <!-- Overlay mobile -->
+      <div
+        id="sidebar-overlay"
+        class="fixed inset-0 z-20 hidden bg-black/60 backdrop-blur-sm lg:hidden"
+        onclick="toggleSidebar()"
+      ></div>
+
+      <!-- Main -->
+      <div class="flex flex-1 flex-col min-w-0 overflow-hidden">
+        {% include 'components/navbar.html' %}
+        <main class="flex-1 overflow-y-auto px-4 py-6 lg:px-8 lg:py-8">
+          {% block content %}{% endblock %}
+        </main>
+      </div>
+    </div>
+
+    <div id="toast-container"></div>
+
+    {% if messages %}
+    <div id="django-messages" class="hidden">
+      {% for msg in messages %}
+      <div data-message="{{ msg|escapejs }}" data-tags="{{ msg.tags }}"></div>
+      {% endfor %}
+    </div>
+    <script>
+      document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('#django-messages [data-message]').forEach((item) => {
+          showToast(item.dataset.message, item.dataset.tags);
+        });
+      });
+    </script>
+    {% endif %}
+
+    <script>
+      function toggleSidebar() {
+        document
+          .getElementById("sidebar")
+          .classList.toggle("-translate-x-full");
+        document.getElementById("sidebar-overlay").classList.toggle("hidden");
+      }
+      function showToast(msg, type = "info") {
+        const map = {
+          success: "toast-success",
+          error: "toast-error",
+          warning: "toast-error",
+          info: "toast-info",
+        };
+        const d = document.createElement("div");
+        d.className = "toast " + (map[type] || "toast-info");
+        d.textContent = msg;
+        document.getElementById("toast-container").appendChild(d);
+        setTimeout(() => d.remove(), 4000);
+      }
+      function getCookie(name) {
+        const cookie = document.cookie
+          .split(";")
+          .map((c) => c.trim())
+          .find((c) => c.startsWith(name + "="));
+        return cookie ? decodeURIComponent(cookie.split("=")[1]) : null;
+      }
+      function closeNotifDropdown() {
+        document.getElementById("notif-dropdown")?.classList.add("hidden");
+      }
+      function toggleNotifDropdown() {
+        const dropdown = document.getElementById("notif-dropdown");
+        if (!dropdown) return;
+        dropdown.classList.toggle("hidden");
+      }
+      function openNotifAndMark(id, destination) {
+        fetch(`/api/notifications/${id}/marquer_lue/`, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: {
+            "Content-Type": "application/json",
+            "X-CSRFToken": getCookie("csrftoken"),
+          },
+        }).finally(() => {
+          window.location.href = destination;
+        });
+      }
+      function initNotificationNavbar() {
+        document
+          .getElementById("notif-toggle")
+          ?.addEventListener("click", (event) => {
+            event.stopPropagation();
+            toggleNotifDropdown();
+          });
+        document
+          .getElementById("notif-mark-all")
+          ?.addEventListener("click", async () => {
+            try {
+              const res = await fetch("/api/notifications/tout_lire/", {
+              });
+            } catch (err) {
+              showToast(
+                "Impossible de marquer toutes les notifications comme lues",
+                "error",
+              );
+            }
+          });
+          document
+            .querySelectorAll("#notif-dropdown button[data-id]")
+            .forEach((btn) => {
+              btn.addEventListener("click", () => {
+                openNotifAndMark(btn.dataset.id, btn.dataset.livraison);
+              });
+            });
+          document.addEventListener("click", (event) => {
+            if (
+              !event.target.closest("#notif-dropdown") &&
+              !event.target.closest("#notif-toggle")
+            ) {
+              closeNotifDropdown();
+            }
+          });
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+          initNotificationNavbar();
+        });
+        window.showToast = showToast;
+        window.getCookie = getCookie;
+      </script>
+
+      <!-- KargoBot Widget -->
+      <div id="kargobot-btn"
+           onclick="toggleChat()"
+           style="position:fixed;bottom:24px;right:24px;z-index:9999;
+                  width:52px;height:52px;border-radius:50%;
+                  background:#4f46e5;cursor:pointer;
+                  display:flex;align-items:center;justify-content:center;
+                  box-shadow:0 4px 14px rgba(79,70,229,0.5);">
+        <svg width="24" height="24" fill="none" stroke="white" stroke-width="2"
+             viewBox="0 0 24 24">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+      </div>
+
+      <div id="kargobot-panel"
+           style="display:none;position:fixed;bottom:88px;right:24px;z-index:9999;
+                  width:320px;height:420px;background:white;border-radius:16px;
+                  box-shadow:0 8px 32px rgba(0,0,0,0.15);
+                  flex-direction:column;overflow:hidden;">
+        <div style="background:#4f46e5;padding:12px 16px;
+                    display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <div style="width:8px;height:8px;border-radius:50%;background:#22c55e;
+                        display:inline-block;"></div>
+            <span style="color:white;font-weight:600;font-size:14px;">KargoBot</span>
+            <span style="color:#a5b4fc;font-size:11px;">Llama 3 · Groq</span>
+          </div>
+          <button onclick="toggleChat()"
+                  style="background:none;border:none;color:white;cursor:pointer;
+                         font-size:18px;line-height:1;">✕</button>
+        </div>
+        <div id="kargobot-messages"
+             style="flex:1;overflow-y:auto;padding:12px;
+                    display:flex;flex-direction:column;gap:8px;background:#f8fafc;">
+          <div style="display:flex;gap:8px;align-items:flex-start;">
+            <div style="width:28px;height:28px;border-radius:50%;background:#4f46e5;
+                        display:flex;align-items:center;justify-content:center;
+                        font-size:12px;color:white;flex-shrink:0;">IA</div>
+            <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;
+                        padding:8px 12px;font-size:13px;color:#334155;max-width:220px;">
+              Bonjour ! Je suis KargoBot. Comment puis-je vous aider avec vos livraisons ?
+            </div>
+          </div>
+          <div id="kargobot-suggestions" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px;">
+            <button onclick="sendSuggestion('Résume le tableau de bord')"
+                    style="background:white;border:1px solid #e2e8f0;border-radius:20px;
+                           padding:4px 10px;font-size:11px;color:#4f46e5;cursor:pointer;">
+              📊 Résume le dashboard
+            </button>
+            <button onclick="sendSuggestion('Combien de livraisons en attente ?')"
+                    style="background:white;border:1px solid #e2e8f0;border-radius:20px;
+                           padding:4px 10px;font-size:11px;color:#4f46e5;cursor:pointer;">
+              📦 Livraisons en attente
+            </button>
+            <button onclick="sendSuggestion('Comment fonctionne Orange Money sur la plateforme ?')"
+                    style="background:white;border:1px solid #e2e8f0;border-radius:20px;
+                           padding:4px 10px;font-size:11px;color:#4f46e5;cursor:pointer;">
+              💳 Orange Money
+            </button>
+          </div>
+        </div>
+        <div style="padding:10px;border-top:1px solid #e2e8f0;
+                    display:flex;gap:8px;background:white;">
+          <input id="kargobot-input"
+                 type="text"
+                 placeholder="Posez votre question..."
+                 onkeydown="if(event.key==='Enter')sendMessage()"
+                 style="flex:1;border:1px solid #e2e8f0;border-radius:20px;
+                        padding:8px 14px;font-size:13px;outline:none;
+                        color:#334155;background:#f8fafc;" />
+          <button onclick="sendMessage()"
+                  id="kargobot-send"
+                  style="width:36px;height:36px;border-radius:50%;background:#4f46e5;
+                         border:none;cursor:pointer;display:flex;
+                         align-items:center;justify-content:center;">
+            <svg width="16" height="16" fill="none" stroke="white"
+                 stroke-width="2.5" viewBox="0 0 24 24">
+              <line x1="22" y1="2" x2="11" y2="13"/>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <script>
+        let kargobotHistory = [];
+        let kargobotOpen = false;
+        function toggleChat() {
+          kargobotOpen = !kargobotOpen;
+          const panel = document.getElementById('kargobot-panel');
+          panel.style.display = kargobotOpen ? 'flex' : 'none';
+          if (kargobotOpen) {
+            document.getElementById('kargobot-input').focus();
+          }
+        }
+        function addMessage(content, isUser) {
+          const container = document.getElementById('kargobot-messages');
+          document.getElementById('kargobot-suggestions').style.display = 'none';
+          const wrapper = document.createElement('div');
+          wrapper.style.cssText = 'display:flex;gap:8px;align-items:flex-start;' +
+            (isUser ? 'flex-direction:row-reverse;' : '');
+          const avatar = document.createElement('div');
+          avatar.style.cssText = 'width:28px;height:28px;border-radius:50%;' +
+            'display:flex;align-items:center;justify-content:center;' +
+            'font-size:11px;font-weight:600;flex-shrink:0;' +
+            (isUser
+              ? 'background:#e0e7ff;color:#4f46e5;'
+              : 'background:#4f46e5;color:white;');
+          avatar.textContent = isUser ? 'Moi' : 'IA';
+          const bubble = document.createElement('div');
+          bubble.style.cssText = 'border-radius:12px;padding:8px 12px;' +
+            'font-size:13px;max-width:220px;line-height:1.5;' +
+            (isUser
+              ? 'background:#e0e7ff;color:#3730a3;margin-left:auto;'
+              : 'background:white;border:1px solid #e2e8f0;color:#334155;');
+          bubble.textContent = content;
+          wrapper.appendChild(avatar);
+          wrapper.appendChild(bubble);
+          container.appendChild(wrapper);
+          container.scrollTop = container.scrollHeight;
+        }
+        function addTypingIndicator() {
+          const container = document.getElementById('kargobot-messages');
+          const div = document.createElement('div');
+          div.id = 'kargobot-typing';
+          div.style.cssText = 'display:flex;gap:8px;align-items:center;';
+          div.innerHTML = `
+            <div style="width:28px;height:28px;border-radius:50%;background:#4f46e5;
+                        display:flex;align-items:center;justify-content:center;
+                        font-size:11px;color:white;">IA</div>
+            <div style="background:white;border:1px solid #e2e8f0;border-radius:12px;
+                        padding:8px 14px;display:flex;gap:4px;align-items:center;">
+              <span style="width:6px;height:6px;border-radius:50%;background:#94a3b8;
+                           animation:bounce 1s infinite;"></span>
+              <span style="width:6px;height:6px;border-radius:50%;background:#94a3b8;
+                           animation:bounce 1s infinite .2s;"></span>
+              <span style="width:6px;height:6px;border-radius:50%;background:#94a3b8;
+                           animation:bounce 1s infinite .4s;"></span>
+            </div>`;
+          container.appendChild(div);
+          container.scrollTop = container.scrollHeight;
+        }
+        async function sendMessage() {
+          const input = document.getElementById('kargobot-input');
+          const message = input.value.trim();
+          if (!message) return;
+          input.value = '';
+          addMessage(message, true);
+          addTypingIndicator();
+          document.getElementById('kargobot-send').disabled = true;
+          try {
+            const res = await fetch('/api/assistant/', {
+              method: 'POST',
+              credentials: 'same-origin',
+              headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+              },
+              body: JSON.stringify({ message, history: kargobotHistory }),
+            });
+            const data = await res.json();
+            document.getElementById('kargobot-typing')?.remove();
+            if (data.response) {
+              addMessage(data.response, false);
+              kargobotHistory.push({ role: 'user', content: message });
+              kargobotHistory.push({ role: 'assistant', content: data.response });
+              if (kargobotHistory.length > 20) {
+                kargobotHistory = kargobotHistory.slice(-20);
+              }
+            } else {
+              addMessage("Désolé, une erreur s'est produite. Réessayez.", false);
+            }
+          } catch (e) {
+            document.getElementById('kargobot-typing')?.remove();
+            addMessage("Connexion impossible. Vérifiez votre connexion internet.", false);
+          }
+          document.getElementById('kargobot-send').disabled = false;
+          document.getElementById('kargobot-input').focus();
+        }
+        function sendSuggestion(text) {
+          document.getElementById('kargobot-input').value = text;
+          sendMessage();
+        }
+        window.toggleChat = toggleChat;
+        window.sendSuggestion = sendSuggestion;
+        window.showToast = showToast;
+        window.getCookie = getCookie;
+      </script>
+      <style>
+        @keyframes bounce {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-4px); }
+        }
+      </style>
+
+      {% load static %}
+      <script src="{% static 'js/gps_simulator.js' %}?v=3"></script>
+      <script src="{% static 'js/carte_dashboard.js' %}?v=3"></script>
+      <script src="{% static 'js/carte_tracking.js' %}?v=3"></script>
+      {% block extra_js %}{% endblock %}
+    </body>
+  </html>

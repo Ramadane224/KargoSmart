@@ -1,0 +1,61 @@
+{% extends 'base-login.html' %}
+
+{% block title %}Connexion - KargoSmart{% endblock %}
+
+{% block content %}
+<div class="rounded-3xl bg-white p-8 shadow-2xl">
+    <div class="mb-6 text-center">
+        <h1 class="text-3xl font-bold text-blue-600">KargoSmart</h1>
+        <p class="text-sm text-slate-500">Gestion des livraisons urbaines</p>
+    </div>
+    
+    <h2 class="mb-6 text-xl font-semibold text-slate-900">Connexion</h2>
+    
+    <form method="post" class="space-y-5">
+        {% csrf_token %}
+        
+        {% if form.non_field_errors %}
+            <div class="rounded-lg bg-red-50 p-4 text-sm text-red-700">
+                {% for error in form.non_field_errors %}
+                    <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+        {% endif %}
+        
+        <div>
+            <label for="id_username" class="block text-sm font-medium text-slate-700 mb-2">Identifiant</label>
+            <input type="text" name="username" id="id_username" required
+                class="w-full rounded-lg border border-slate-300 px-4 py-2 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
+            {% if form.username.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.username.errors.0 }}</p>
+            {% endif %}
+        </div>
+        
+        <div>
+            <label for="id_password" class="block text-sm font-medium text-slate-700 mb-2">Mot de passe</label>
+            <input type="password" name="password" id="id_password" required
+                class="w-full rounded-lg border border-slate-300 px-4 py-2 text-slate-900 placeholder-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200">
+            {% if form.password.errors %}
+                <p class="mt-1 text-xs text-red-600">{{ form.password.errors.0 }}</p>
+            {% endif %}
+        </div>
+        
+        <button type="submit" class="w-full rounded-lg bg-blue-600 px-4 py-2.5 font-semibold text-white transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
+            Se connecter
+        </button>
+    </form>
+    
+    <div class="mt-6 border-t border-slate-200 pt-6">
+        <p class="text-center text-sm text-slate-600">
+            Pas encore de compte ? 
+            <a href="{% url 'inscription' %}" class="font-semibold text-blue-600 hover:text-blue-700">S'inscrire</a>
+        </p>
+    </div>
+    
+    <div class="mt-6 rounded-lg bg-blue-50 p-4 text-xs text-slate-600">
+        <p><strong>Compte de test :</strong></p>
+        <p>Identifiant: <code class="bg-white px-2 py-1 text-slate-900">admin</code></p>
+        <p>Mot de passe: <code class="bg-white px-2 py-1 text-slate-900">admin123</code></p>
+    </div>
+</div>
+{% endblock %}

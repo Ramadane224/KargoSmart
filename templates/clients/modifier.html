@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+
+{% block title %}Modifier client - KargoSmart{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl rounded-3xl bg-white p-6 shadow-sm">
+    <h2 class="text-2xl font-semibold text-slate-900">Modifier un client</h2>
+    <form method="post" class="mt-6 grid gap-4">
+        {% csrf_token %}
+        {% for field in form %}
+            <div>
+                <label class="mb-2 block text-sm font-medium text-slate-700">{{ field.label }}</label>
+                {{ field }}
+                <p class="text-xs text-red-500">{{ field.errors }}</p>
+            </div>
+        {% endfor %}
+        <button type="submit" class="mt-4 rounded-2xl bg-blue-600 px-4 py-3 text-white hover:bg-blue-700">Enregistrer</button>
+    </form>
+</div>
+{% endblock %}

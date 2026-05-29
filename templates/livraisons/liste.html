@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block title %}Livraisons — KargoSmart{% endblock %}
+{% block page_title %}Livraisons{% endblock %}
+
+{% block content %}
+<!-- Barre d'actions -->
+<div class="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+  <div class="space-y-3">
+    <form method="get" class="flex flex-wrap gap-2">
+      <input type="text" name="q" value="{{ request.GET.q }}" placeholder="Rechercher un code..."
+        class="rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+      <button type="submit" class="rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
+        Filtrer
+      </button>
+      {% if request.GET.q or request.GET.statut %}
+      <a href="/livraisons/" class="rounded-xl border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">✕ Reset</a>
+      {% endif %}
+    </form>
+    <div class="flex flex-wrap gap-2">
+      <span class="text-xs font-semibold uppercase tracking-wide text-slate-400">Statuts :</span>
+      <a href="/livraisons/" class="rounded-full border px-3 py-1 text-xs font-medium transition {% if not statut_actif %}bg-slate-100 text-slate-700 border-slate-200{% else %}text-slate-600 hover:bg-slate-100{% endif %}">Tous</a>
+      {% for val, label in statuts %}
+      <a href="?statut={{ val }}" class="rounded-full border px-3 py-1 text-xs font-medium transition {% if statut_actif == val %}bg-blue-600 text-white border-blue-600{% else %}border-slate-200 text-slate-600 hover:bg-slate-100{% endif %}">
+        {{ label }}
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  <a href="/livraisons/creer/" class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700">
+    + Nouvelle livraison
+  </a>
+</div>
+
+<!-- Table -->
+<div class="rounded-2xl bg-white shadow-sm overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+        <tr>
+          <th class="px-6 py-3 text-left">Code</th>
+          <th class="px-6 py-3 text-left">Client</th>
+          <th class="px-6 py-3 text-left">Livreur</th>
+          <th class="px-6 py-3 text-left">Statut</th>
+          <th class="px-6 py-3 text-left">Distance</th>
+          <th class="px-6 py-3 text-left">Coût</th>
+          <th class="px-6 py-3 text-left">Date</th>
+          <th class="px-6 py-3 text-left">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-100">
+        {% for liv in livraisons %}
+        <tr class="hover:bg-slate-50 transition">
+          <td class="px-6 py-3 font-mono font-medium text-blue-600">{{ liv.code_livraison }}</td>
+          <td class="px-6 py-3 text-slate-700">{{ liv.client }}</td>
+          <td class="px-6 py-3 text-slate-600">{{ liv.livreur|default:"—" }}</td>
+          <td class="px-6 py-3">{% include 'components/badge_statut.html' with statut=liv.statut %}</td>
+          <td class="px-6 py-3 text-slate-500">
+            {% if liv.distance_km %}{{ liv.distance_km }} km{% else %}—{% endif %}
+          </td>
+          <td class="px-6 py-3 text-slate-700">{{ liv.cout_estime|floatformat:0 }} GNF</td>
+          <td class="px-6 py-3 text-slate-500">{{ liv.date_creation|date:"d/m H:i" }}</td>
+          <td class="px-6 py-3">
+            <div class="flex items-center gap-2">
+              <a href="/livraisons/{{ liv.pk }}/" class="text-xs font-medium text-blue-600 hover:underline">Voir</a>
+              {% if request.user.role == 'ADMINISTRATEUR' or request.user.role == 'GESTIONNAIRE' %}
+              <a href="/livraisons/{{ liv.pk }}/modifier/" class="text-xs font-medium text-slate-500 hover:underline">Modifier</a>
+              {% endif %}
+              {% if request.user.role == 'ADMINISTRATEUR' %}
+              <a href="/livraisons/{{ liv.pk }}/supprimer/" class="text-xs font-medium text-red-500 hover:underline">Supprimer</a>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="8" class="px-6 py-10 text-center text-slate-400">Aucune livraison trouvée.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  {% if is_paginated %}
+  <div class="flex items-center justify-between border-t border-slate-100 px-6 py-4">
+    <p class="text-sm text-slate-500">Page {{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</p>
+    <div class="flex gap-2">
+      {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}{% if request.GET.statut %}&statut={{ request.GET.statut }}{% endif %}"
+        class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50">← Préc.</a>
+      {% endif %}
+      {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}{% if request.GET.statut %}&statut={{ request.GET.statut }}{% endif %}"
+        class="rounded-lg border border-slate-200 px-3 py-1.5 text-sm hover:bg-slate-50">Suiv. →</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

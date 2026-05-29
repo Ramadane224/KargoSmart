@@ -1,0 +1,58 @@
+<header class="sticky top-0 z-10 flex items-center justify-between border-b border-slate-200 bg-white/95 backdrop-blur px-4 py-3 lg:px-8">
+  <div class="flex items-center gap-3">
+    <button onclick="toggleSidebar()"
+      class="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 lg:hidden transition-colors">
+      <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+      </svg>
+    </button>
+    <h1 class="text-sm font-semibold text-slate-700 lg:text-base">{% block page_title %}{% endblock %}</h1>
+  </div>
+  <div class="flex items-center gap-2">
+    {% if user.is_authenticated %}
+    <div class="relative">
+      <button id="notif-toggle" type="button"
+        class="relative rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors">
+        <svg class="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+        </svg>
+        {% if notifs_count > 0 %}
+        <span class="absolute -right-1 -top-1 inline-flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-600 px-1.5 text-[10px] font-semibold text-white">{{ notifs_count }}</span>
+        {% endif %}
+      </button>
+
+      <div id="notif-dropdown" class="hidden absolute right-0 mt-2 w-80 origin-top-right rounded-2xl border border-slate-200 bg-white py-3 shadow-xl shadow-slate-900/5">
+        <div class="flex items-center justify-between px-4 pb-3">
+          <div>
+            <p class="text-sm font-semibold text-slate-900">Notifications</p>
+            <p class="text-xs text-slate-500">{{ notifs_count }} non lue(s)</p>
+          </div>
+          <button type="button" id="notif-mark-all" class="text-xs font-semibold text-blue-600 hover:underline">Tout marquer</button>
+        </div>
+        <div class="max-h-72 space-y-2 overflow-y-auto px-4">
+          {% if notifs_recentes %}
+            {% for notif in notifs_recentes %}
+            <button type="button" data-id="{{ notif.pk }}" data-livraison="{% if notif.livraison %}/livraisons/{{ notif.livraison.pk }}/{% else %}/notifications/{% endif %}"
+              class="w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-left transition hover:bg-slate-100">
+              <div class="flex items-center justify-between gap-3">
+                <span class="text-xs font-semibold text-slate-900">{{ notif.titre }}</span>
+                <span class="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">{{ notif.type_notif }}</span>
+              </div>
+              <p class="mt-1 text-xs text-slate-600">{{ notif.message|truncatechars:80 }}</p>
+              <p class="mt-2 text-[11px] text-slate-400">{{ notif.date_creation|timesince }} ago</p>
+            </button>
+            {% endfor %}
+          {% else %}
+            <p class="px-4 py-3 text-sm text-slate-500">Aucune notification non lue.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    <a href="/utilisateurs/deconnexion/"
+       class="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+      Déconnexion
+    </a>
+    {% endif %}
+  </div>
+</header>

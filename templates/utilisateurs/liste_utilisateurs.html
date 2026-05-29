@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% block title %}Utilisateurs — KargoSmart{% endblock %}
+{% block page_title %}Utilisateurs{% endblock %}
+
+{% block content %}
+
+<div class="mb-5 flex items-center justify-between">
+  <!-- Onglets -->
+  <div class="flex gap-1 rounded-xl bg-slate-200 p-1">
+    <button onclick="showTab('users')" id="tab-users"
+      class="rounded-lg px-4 py-1.5 text-sm font-medium transition-colors bg-white text-slate-800 shadow-sm">
+      Tous les utilisateurs
+    </button>
+    <button onclick="showTab('livreurs')" id="tab-livreurs"
+      class="rounded-lg px-4 py-1.5 text-sm font-medium transition-colors text-slate-500 hover:text-slate-700">
+      Livreurs
+    </button>
+  </div>
+  <a href="{% url 'creer_utilisateur' %}"
+     class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 shadow-sm">
+    + Nouvel utilisateur
+  </a>
+</div>
+
+<!-- Tab : Tous les utilisateurs -->
+<div id="panel-users" class="rounded-2xl bg-white shadow-sm border border-slate-100 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
+        <tr>
+          <th class="px-6 py-3 text-left font-semibold">Utilisateur</th>
+          <th class="px-6 py-3 text-left font-semibold">Rôle</th>
+          <th class="px-6 py-3 text-left font-semibold">Téléphone</th>
+          <th class="px-6 py-3 text-left font-semibold">Email</th>
+          <th class="px-6 py-3 text-left font-semibold">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-50">
+        {% for u in utilisateurs %}
+        <tr class="hover:bg-slate-50/70 transition-colors">
+          <td class="px-6 py-3">
+            <div class="flex items-center gap-3">
+              <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-600">
+                {{ u.username|first|upper }}
+              </div>
+              <div>
+                <p class="font-medium text-slate-800">{{ u.get_full_name|default:u.username }}</p>
+                <p class="text-xs text-slate-400">@{{ u.username }}</p>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-3">
+            <span class="rounded-full px-2.5 py-0.5 text-xs font-semibold
+              {% if u.role == 'ADMINISTRATEUR' %}bg-red-100 text-red-700
+              {% elif u.role == 'GESTIONNAIRE' %}bg-purple-100 text-purple-700
+              {% elif u.role == 'LIVREUR' %}bg-amber-100 text-amber-700
+              {% else %}bg-slate-100 text-slate-600{% endif %}">
+              {{ u.get_role_display }}
+            </span>
+          </td>
+          <td class="px-6 py-3 text-slate-500 text-xs">{{ u.telephone|default:"—" }}</td>
+          <td class="px-6 py-3 text-slate-500 text-xs">{{ u.email|default:"—" }}</td>
+          <td class="px-6 py-3">
+            <div class="flex items-center gap-2">
+              <a href="{% url 'modifier_utilisateur' u.pk %}"
+                 class="rounded-lg bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200 transition-colors">
+                ✏️ Modifier
+              </a>
+              {% if u != request.user %}
+              <form method="post" action="{% url 'supprimer_utilisateur' u.pk %}"
+                    onsubmit="return confirm('Supprimer définitivement {{ u.username }} ?')">
+                {% csrf_token %}
+                <button type="submit"
+                  class="rounded-lg bg-red-50 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors">
+                  🗑 Supprimer
+                </button>
+              </form>
+              {% endif %}
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5" class="px-6 py-10 text-center text-slate-400">Aucun utilisateur.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Tab : Livreurs -->
+<div id="panel-livreurs" class="hidden rounded-2xl bg-white shadow-sm border border-slate-100 overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="min-w-full text-sm">
+      <thead class="bg-slate-50 text-xs uppercase tracking-wide text-slate-400">
+        <tr>
+          <th class="px-6 py-3 text-left font-semibold">Livreur</th>
+          <th class="px-6 py-3 text-left font-semibold">Véhicule</th>
+          <th class="px-6 py-3 text-left font-semibold">Note</th>
+          <th class="px-6 py-3 text-left font-semibold">Livraisons</th>
+          <th class="px-6 py-3 text-left font-semibold">Statut</th>
+          <th class="px-6 py-3 text-left font-semibold">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-slate-50">
+        {% for livreur in livreurs %}
+        <tr class="hover:bg-slate-50/70 transition-colors">
+          <td class="px-6 py-3">
+            <div class="flex items-center gap-3">
+              <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-amber-100 text-sm">🛵</div>
+              <div>
+                <p class="font-medium text-slate-800">{{ livreur.profil.get_full_name|default:livreur.profil.username }}</p>
+                <p class="text-xs text-slate-400">{{ livreur.profil.telephone|default:"—" }}</p>
+              </div>
+            </div>
+          </td>
+          <td class="px-6 py-3 text-slate-600 text-xs">{{ livreur.get_type_vehicule_display }}</td>
+          <td class="px-6 py-3">
+            <span class="text-amber-500 font-semibold">★ {{ livreur.note_moyenne }}</span>
+          </td>
+          <td class="px-6 py-3 text-slate-600">{{ livreur.total_livraisons }}</td>
+          <td class="px-6 py-3">
+            {% if livreur.est_actif and livreur.est_disponible %}
+              <span class="rounded-full bg-green-100 px-2.5 py-0.5 text-xs font-semibold text-green-700">Disponible</span>
+            {% elif livreur.est_actif %}
+              <span class="rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-semibold text-orange-700">Occupé</span>
+            {% else %}
+              <span class="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-500">Inactif</span>
+            {% endif %}
+          </td>
+          <td class="px-6 py-3">
+            <div class="flex items-center gap-2">
+              <a href="{% url 'modifier_utilisateur' livreur.profil.pk %}"
+                 class="rounded-lg bg-slate-100 px-3 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200 transition-colors">
+                ✏️ Modifier
+              </a>
+              <form method="post" action="{% url 'activer_livreur' livreur.pk %}">
+                {% csrf_token %}
+                <button type="submit"
+                  class="rounded-lg px-3 py-1 text-xs font-medium transition-colors
+                    {% if livreur.est_actif %}bg-red-50 text-red-600 hover:bg-red-100{% else %}bg-green-50 text-green-600 hover:bg-green-100{% endif %}">
+                  {% if livreur.est_actif %}Désactiver{% else %}Activer{% endif %}
+                </button>
+              </form>
+              <form method="post" action="{% url 'supprimer_utilisateur' livreur.profil.pk %}"
+                    onsubmit="return confirm('Supprimer le livreur {{ livreur.profil.username }} ?')">
+                {% csrf_token %}
+                <button type="submit"
+                  class="rounded-lg bg-red-50 px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-100 transition-colors">
+                  🗑 Supprimer
+                </button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6" class="px-6 py-10 text-center text-slate-400">Aucun livreur enregistré.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function showTab(tab) {
+  document.getElementById('panel-users').classList.toggle('hidden', tab !== 'users');
+  document.getElementById('panel-livreurs').classList.toggle('hidden', tab !== 'livreurs');
+  document.getElementById('tab-users').className = 'rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ' +
+    (tab === 'users' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700');
+  document.getElementById('tab-livreurs').className = 'rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ' +
+    (tab === 'livreurs' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700');
+}
+</script>
+{% endblock %}

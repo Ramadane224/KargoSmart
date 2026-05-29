@@ -1,0 +1,128 @@
+{% extends 'base.html' %}
+{% block title %}{{ conversation.livraison.code_livraison }} — KargoSmart{% endblock %}
+{% block page_title %}Discussion {{ conversation.livraison.code_livraison }}{% endblock %}
+
+{% block content %}
+<div class="grid gap-6 lg:grid-cols-4">
+  <!-- Infos livraison -->
+  <div class="lg:col-span-1">
+    <div class="rounded-2xl bg-white p-4 shadow-sm space-y-4">
+      <div>
+        <p class="text-xs font-semibold text-slate-500 uppercase">Livraison</p>
+        <p class="text-lg font-bold text-slate-900">{{ conversation.livraison.code_livraison }}</p>
+      </div>
+      
+      <div>
+        <p class="text-xs font-semibold text-slate-500 uppercase">Client</p>
+        <p class="text-sm text-slate-700">{{ conversation.livraison.client }}</p>
+      </div>
+      
+      {% if conversation.livraison.livreur %}
+      <div>
+        <p class="text-xs font-semibold text-slate-500 uppercase">Livreur</p>
+        <p class="text-sm text-slate-700">{{ conversation.livraison.livreur }}</p>
+      </div>
+      {% endif %}
+      
+      <div>
+        <p class="text-xs font-semibold text-slate-500 uppercase">Statut</p>
+        {% include 'components/badge_statut.html' with statut=conversation.livraison.statut %}
+      </div>
+      
+      <a href="{% url 'detail_livraison' conversation.livraison.pk %}" class="inline-block w-full text-center rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+        Voir la livraison →
+      </a>
+      
+      <hr class="border-slate-200">
+      
+      <div>
+        <p class="text-xs font-semibold text-slate-500 uppercase mb-2">Participants</p>
+        <div class="space-y-1">
+          {% for user in conversation.participants.all %}
+          <p class="text-xs text-slate-600">• {{ user.get_full_name|default:user.username }}</p>
+          {% endfor %}
+        </div>
+      </div>
+      
+      <a href="{% url 'liste_conversations' %}" class="inline-block w-full text-center rounded-xl border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+        ← Retour
+      </a>
+    </div>
+  </div>
+
+  <!-- Chat -->
+  <div class="lg:col-span-3">
+    <div class="rounded-2xl bg-white shadow-sm overflow-hidden flex flex-col h-96">
+      <!-- Messages -->
+      <div id="messages-container" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
+        {% for message in messages %}
+        <div class="flex {% if message.auteur == request.user %}justify-end{% endif %}">
+          <div class="max-w-xs rounded-xl {% if message.auteur == request.user %}bg-blue-600 text-white{% else %}bg-white border border-slate-200{% endif %} px-4 py-2">
+            {% if message.auteur != request.user %}
+            <p class="text-xs font-semibold {% if message.auteur == request.user %}text-blue-100{% else %}text-slate-500{% endif %} mb-1">
+              {{ message.auteur.get_full_name|default:message.auteur.username }}
+            </p>
+            {% endif %}
+            <p class="text-sm">{{ message.contenu }}</p>
+            <p class="text-xs {% if message.auteur == request.user %}text-blue-200{% else %}text-slate-400{% endif %} mt-1">
+              {{ message.date_envoi|date:"H:i" }}
+            </p>
+          </div>
+        </div>
+        {% empty %}
+        <div class="text-center py-8">
+          <p class="text-slate-400 text-sm">Aucun message. Commencez la conversation!</p>
+        </div>
+        {% endfor %}
+      </div>
+
+      <!-- Formulaire d'envoi -->
+      <form id="form-message" class="border-t border-slate-200 p-4 bg-white flex gap-2">
+        {% csrf_token %}
+        <input type="text" id="contenu" name="contenu" placeholder="Votre message..." 
+          class="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <button type="submit" class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+          Envoyer
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  const form = document.getElementById('form-message');
+  const container = document.getElementById('messages-container');
+  
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const input = document.getElementById('contenu');
+    const contenu = input.value.trim();
+    
+    if (!contenu) return;
+    
+    try {
+      const fd = new FormData();
+      fd.append('contenu', contenu);
+      const res = await fetch('{% url "envoyer_message" conversation.pk %}', {
+        method: 'POST',
+        body: JSON.stringify({ contenu }),
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        }
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        input.value = '';
+        location.reload();
+      }
+    } catch (err) {
+      console.error('Erreur:', err);
+    }
+  });
+  
+  // Scroll vers le bas
+  container.scrollTop = container.scrollHeight;
+</script>
+{% endblock %}

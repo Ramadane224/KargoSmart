@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}Supprimer {{ object.code_livraison }} — KargoSmart{% endblock %}
+{% block page_title %}Supprimer une livraison{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-md">
+  <div class="rounded-2xl bg-white p-6 shadow-sm border border-slate-100 text-center">
+    <div class="text-5xl mb-4">⚠️</div>
+    <h2 class="text-lg font-semibold text-slate-900">Supprimer {{ object.code_livraison }} ?</h2>
+    <p class="mt-2 text-sm text-slate-500">Client : {{ object.client }} · Statut : {{ object.get_statut_display }}</p>
+    <p class="mt-1 text-xs text-red-500">Cette action est irréversible.</p>
+    <div class="mt-6 flex justify-center gap-3">
+      <a href="/livraisons/{{ object.pk }}/"
+         class="rounded-xl border border-slate-200 px-5 py-2 text-sm text-slate-700 hover:bg-slate-50">
+        Annuler
+      </a>
+      <form method="post">
+        {% csrf_token %}
+        <button type="submit"
+          class="rounded-xl bg-red-600 px-5 py-2 text-sm font-semibold text-white hover:bg-red-700">
+          Supprimer
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

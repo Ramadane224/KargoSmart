@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block title %}Profil - KargoSmart{% endblock %}
+
+{% block content %}
+<div class="grid gap-6 md:grid-cols-3">
+    <div class="rounded-3xl bg-white p-6 shadow-sm">
+        <h2 class="text-xl font-semibold text-slate-900">Mon profil</h2>
+        <p class="mt-4 text-slate-600">Nom : {{ object.get_full_name }}</p>
+        <p class="mt-2 text-slate-600">Email : {{ object.email }}</p>
+        <p class="mt-2 text-slate-600">Téléphone : {{ object.telephone }}</p>
+        <p class="mt-2 text-slate-600">Rôle : {{ object.get_role_display }}</p>
+        <p class="mt-2 text-slate-600">Statut vérifié : {{ object.est_verifie|yesno:'Oui,Non' }}</p>
+    </div>
+    <div class="md:col-span-2 rounded-3xl bg-white p-6 shadow-sm">
+        <h3 class="text-lg font-semibold text-slate-900">Informations</h3>
+        <p class="mt-4 text-slate-600">Adresse : {{ object.adresse }}</p>
+        <p class="mt-4 text-slate-600">Date de création : {{ object.date_creation }}</p>
+        <p class="mt-2 text-slate-600">Dernière modification : {{ object.date_modif }}</p>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+
+{% block title %}Notifications - KargoSmart{% endblock %}
+
+{% block content %}
+<div class="space-y-5">
+  <div class="rounded-3xl bg-white p-6 shadow-sm border border-slate-200">
+    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div>
+        <h2 class="text-2xl font-semibold text-slate-900">Notifications</h2>
+        <p class="text-sm text-slate-500">Historique complet des alertes et mises à jour de livraison.</p>
+      </div>
+      <button id="btn-mark-all-notifs" type="button"
+        class="inline-flex items-center justify-center rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+        Tout marquer comme lu
+      </button>
+    </div>
+  </div>
+
+  <div class="rounded-3xl bg-white p-6 shadow-sm border border-slate-200">
+    <div class="grid gap-4">
+      {% for notification in notifications %}
+      <a href="{% if notification.livraison %}/livraisons/{{ notification.livraison.pk }}/{% else %}#{% endif %}"
+         class="group rounded-3xl border border-slate-200 p-4 transition hover:border-slate-300 hover:bg-slate-50">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <p class="text-sm font-semibold text-slate-900">{{ notification.titre }}</p>
+            <p class="mt-1 text-sm text-slate-600">{{ notification.message }}</p>
+          </div>
+          <span class="rounded-full px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-white {% if notification.type_notif == 'ASSIGNEE' %}bg-blue-600{% elif notification.type_notif == 'EN_COURS' or notification.type_notif == 'TERMINEE' %}bg-amber-600{% elif notification.type_notif == 'ANNULEE' or notification.type_notif == 'ALERTE' %}bg-red-600{% else %}bg-slate-500{% endif %}">
+            {{ notification.get_type_notif_display }}
+          </span>
+        </div>
+        <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
+          <span>{{ notification.date_creation|timesince }} ago</span>
+          <span>{% if notification.est_lue %}Lue{% else %}Non lue{% endif %}</span>
+        </div>
+      </a>
+      {% empty %}
+      <div class="rounded-3xl border border-dashed border-slate-200 p-8 text-center text-sm text-slate-500">
+        Aucune notification pour le moment.
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  async function markAllNotificationsRead() {
+    try {
+      const res = await fetch('/api/notifications/tout_lire/', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRFToken': getCookie('csrftoken'),
+        },
+      });
+      if (!res.ok) throw new Error('Erreur');
+      showToast('Toutes les notifications ont été marquées comme lues', 'success');
+      setTimeout(() => location.reload(), 600);
+    } catch (err) {
+      showToast('Impossible de marquer toutes les notifications comme lues', 'error');
+    }
+  }
+
+  document.getElementById('btn-mark-all-notifs')?.addEventListener('click', markAllNotificationsRead);
+</script>
+{% endblock %}

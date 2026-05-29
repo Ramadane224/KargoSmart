@@ -1,0 +1,67 @@
+<div class="flex h-full flex-col px-3 py-5">
+
+  <!-- Logo -->
+  <div class="mb-6 flex items-center gap-3 px-2">
+    <div class="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-blue-600 text-xl shadow-lg">🚚</div>
+    <div>
+      <h2 class="text-base font-bold text-white leading-tight">KargoSmart</h2>
+      <p class="text-xs text-slate-400">Plateforme logistique</p>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <nav class="flex-1 space-y-0.5">
+
+    <a href="/"
+       class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors
+              {% if request.resolver_match.url_name == 'tableau_de_bord' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-300 hover:bg-slate-700/60 hover:text-white{% endif %}">
+      <span class="w-5 text-center">📊</span> Dashboard
+    </a>
+
+    <a href="/livraisons/"
+       class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors
+              {% if 'livraison' in request.resolver_match.url_name|default:'' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-300 hover:bg-slate-700/60 hover:text-white{% endif %}">
+      <span class="w-5 text-center">📦</span> Livraisons
+    </a>
+
+    <a href="/clients/"
+       class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors
+              {% if 'client' in request.resolver_match.url_name|default:'' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-300 hover:bg-slate-700/60 hover:text-white{% endif %}">
+      <span class="w-5 text-center">👥</span> Clients
+    </a>
+
+    <a href="/notifications/"
+       class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors
+              {% if 'notification' in request.resolver_match.url_name|default:'' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-300 hover:bg-slate-700/60 hover:text-white{% endif %}">
+      <span class="w-5 text-center">🔔</span> Notifications
+    </a>
+
+    {% if user.role == 'ADMINISTRATEUR' %}
+    <div class="pt-3 pb-1 px-3">
+      <p class="text-xs font-semibold uppercase tracking-widest text-slate-500">Administration</p>
+    </div>
+    <a href="/utilisateurs/liste/"
+       class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors
+              {% if 'utilisateur' in request.resolver_match.url_name|default:'' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-300 hover:bg-slate-700/60 hover:text-white{% endif %}">
+      <span class="w-5 text-center">🧑‍💼</span> Utilisateurs
+    </a>
+    {% endif %}
+
+  </nav>
+
+  <!-- Profil bas -->
+  {% if user.is_authenticated %}
+  <div class="mt-4 rounded-xl bg-slate-800/80 px-3 py-3 border border-slate-700/50">
+    <div class="flex items-center gap-2">
+      <div class="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-blue-600 text-xs font-bold text-white">
+        {{ user.username|first|upper }}
+      </div>
+      <div class="min-w-0">
+        <p class="truncate text-sm font-semibold text-white">{{ user.get_full_name|default:user.username }}</p>
+        <span class="text-xs text-blue-400">{{ user.role }}</span>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+</div>

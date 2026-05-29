@@ -1,0 +1,40 @@
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+kargoEnv/
+venv/
+.venv/
+
+# Environment variables
+.env
+.env.*
+
+# Django generated files
+*.log
+*.pot
+*.pyc
+*.sqlite3
+*.sqlite3-journal
+/staticfiles/
+/media/
+local_settings.py
+
+# Distribution / packaging
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# IDEs and editors
+.vscode/
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# MySQL exports
+*.sql

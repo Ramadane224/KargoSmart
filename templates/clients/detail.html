@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+
+{% block title %}Client - KargoSmart{% endblock %}
+
+{% block content %}
+<div class="grid gap-6 xl:grid-cols-3">
+    <div class="rounded-3xl bg-white p-6 shadow-sm">
+        <h2 class="text-xl font-semibold text-slate-900">{{ client.prenom }} {{ client.nom }}</h2>
+        <p class="mt-4 text-slate-600">Téléphone : {{ client.telephone }}</p>
+        <p class="mt-2 text-slate-600">Email : {{ client.email }}</p>
+        <p class="mt-2 text-slate-600">Adresse : {{ client.adresse }}</p>
+        <p class="mt-2 text-slate-600">Quartier : {{ client.quartier }}</p>
+    </div>
+    <div class="xl:col-span-2 rounded-3xl bg-white p-6 shadow-sm">
+        <h3 class="text-xl font-semibold text-slate-900">Notes internes</h3>
+        <p class="mt-4 text-slate-600">{{ client.notes_internes|default:'Aucune note enregistrée.' }}</p>
+        <div class="mt-6">
+            <a href="{% url 'modifier_client' client.pk %}" class="rounded-2xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">Modifier</a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends 'base.html' %}
+{% block title %}Messages — KargoSmart{% endblock %}
+{% block page_title %}Mes Conversations{% endblock %}
+
+{% block content %}
+<div class="grid gap-6 lg:grid-cols-4">
+  <!-- Liste des conversations -->
+  <div class="lg:col-span-1">
+    <div class="rounded-2xl bg-white p-4 shadow-sm">
+      <h2 class="mb-4 font-semibold text-slate-900">💬 Discussions</h2>
+      
+      {% if conversations %}
+      <div class="space-y-2">
+        {% for conv in conversations %}
+        <a href="{% url 'detail_conversation' conv.pk %}" 
+           class="block rounded-xl border border-slate-200 p-3 hover:bg-blue-50 transition">
+          <p class="font-medium text-sm text-slate-800 truncate">
+            {{ conv.livraison.code_livraison }}
+          </p>
+          <p class="text-xs text-slate-500">
+            {{ conv.date_derniere_activite|date:"d/m/Y H:i" }}
+          </p>
+        </a>
+        {% endfor %}
+      </div>
+      
+      {% if is_paginated %}
+      <nav class="mt-4 flex gap-2">
+        {% if page_obj.has_previous %}
+        <a href="?page=1" class="text-xs text-blue-600 hover:underline">« Première</a>
+        <a href="?page={{ page_obj.previous_page_number }}" class="text-xs text-blue-600 hover:underline">‹ Précédent</a>
+        {% endif %}
+        <span class="text-xs text-slate-500">Page {{ page_obj.number }} sur {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}" class="text-xs text-blue-600 hover:underline">Suivant ›</a>
+        <a href="?page={{ page_obj.paginator.num_pages }}" class="text-xs text-blue-600 hover:underline">Dernière »</a>
+        {% endif %}
+      </nav>
+      {% endif %}
+      {% else %}
+      <p class="text-sm text-slate-400">Aucune conversation.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Placeholder message central -->
+  <div class="lg:col-span-3">
+    <div class="rounded-2xl bg-slate-50 border border-slate-200 p-12 text-center h-96 flex flex-col items-center justify-center">
+      <p class="text-slate-500 text-lg mb-2">👋 Bienvenue</p>
+      <p class="text-slate-400 text-sm">Sélectionnez une conversation pour commencer</p>
+    </div>
+  </div>
+</div>
+{% endblock %}
