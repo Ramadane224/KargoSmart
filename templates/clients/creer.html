@@ -1,20 +1,220 @@
 {% extends 'base.html' %}
-
-{% block title %}Créer client - KargoSmart{% endblock %}
+{% block title %}Créer client — KargoSmart{% endblock %}
+{% block page_title %}Créer un client{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-2xl rounded-3xl bg-white p-6 shadow-sm">
-    <h2 class="text-2xl font-semibold text-slate-900">Créer un client</h2>
-    <form method="post" class="mt-6 grid gap-4">
-        {% csrf_token %}
-        {% for field in form %}
-            <div>
-                <label class="mb-2 block text-sm font-medium text-slate-700">{{ field.label }}</label>
-                {{ field }}
-                <p class="text-xs text-red-500">{{ field.errors }}</p>
-            </div>
-        {% endfor %}
-        <button type="submit" class="mt-4 rounded-2xl bg-blue-600 px-4 py-3 text-white hover:bg-blue-700">Ajouter</button>
-    </form>
+<div class="w-full px-2 sm:px-4 py-4">
+<form method="post" class="space-y-4 sm:space-y-5">
+  {% csrf_token %}
+
+  {% if form.errors %}
+  <div class="rounded-xl bg-red-50 border border-red-200 px-3 sm:px-4 py-3 text-xs sm:text-sm text-red-700">
+    {% for field in form %}{% for e in field.errors %}<p>{{ field.label }} : {{ e }}</p>{% endfor %}{% endfor %}
+    {% for e in form.non_field_errors %}<p>{{ e }}</p>{% endfor %}
+  </div>
+  {% endif %}
+
+  <div class="grid gap-4 sm:gap-5 grid-cols-1 lg:grid-cols-2">
+
+    <!-- Infos Client -->
+    <div class="rounded-2xl bg-white p-4 sm:p-5 shadow-sm border border-slate-100 space-y-4">
+      <h2 class="text-sm font-semibold text-slate-800 border-b border-slate-100 pb-2">👤 Informations Client</h2>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Nom <span class="text-red-500">*</span></label>
+          {{ form.nom }}
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Prénom</label>
+          {{ form.prenom }}
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Téléphone <span class="text-red-500">*</span></label>
+          {{ form.telephone }}
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Email</label>
+          {{ form.email }}
+        </div>
+      </div>
+
+      <div>
+        <label class="block text-xs font-semibold text-slate-500 mb-1">Adresse</label>
+        {{ form.adresse }}
+        <p class="text-xs text-slate-400 mt-1">💡 Cliquez sur la carte pour auto-remplir</p>
+      </div>
+
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Quartier</label>
+          {{ form.quartier }}
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-500 mb-1">Commune</label>
+          {{ form.commune }}
+        </div>
+      </div>
+    </div>
+
+    <!-- Carte -->
+    <div class="rounded-2xl bg-white p-4 sm:p-5 shadow-sm border border-slate-100 space-y-4">
+      <h2 class="text-sm font-semibold text-slate-800 border-b border-slate-100 pb-2">📍 Localisation</h2>
+
+      <div class="flex items-center justify-between mb-1.5 gap-2">
+        <p class="text-xs text-slate-400">Cliquez sur la carte pour sélectionner l'adresse</p>
+        <button type="button" id="btn-fullscreen-map-client" class="text-xs font-medium text-blue-600 hover:text-blue-700 px-2 py-1 rounded hover:bg-blue-50">
+          ⛶ Plein écran
+        </button>
+      </div>
+      <div id="map-client" class="h-64 sm:h-80 w-full rounded-xl overflow-hidden ring-1 ring-slate-200"></div>
+
+      <div id="location-info" class="hidden bg-blue-50 border border-blue-200 rounded-xl p-3 space-y-1">
+        <p class="text-xs font-semibold text-blue-700">📍 Localisation sélectionnée:</p>
+        <p class="text-xs text-slate-600"><strong>Coords:</strong> <span id="coords-display">—</span></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Boutons -->
+  <div class="flex gap-3 pt-4">
+    <a href="/clients/"
+       class="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">
+      Annuler
+    </a>
+    <button type="submit"
+      class="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm">
+      Créer le client
+    </button>
+  </div>
+
+</form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  const map = L.map('map-client').setView([9.5370, -13.6773], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap'
+  }).addTo(map);
+
+  let marker = null;
+
+  // Fullscreen mode
+  const btnFullscreen = document.getElementById('btn-fullscreen-map-client');
+  const mapContainer = document.getElementById('map-client');
+  let isFullscreen = false;
+
+  btnFullscreen.addEventListener('click', (e) => {
+    e.preventDefault();
+    if (!isFullscreen) {
+      const modal = document.createElement('div');
+      modal.id = 'map-fullscreen-modal-client';
+      modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:#f8fafc;z-index:9999;display:flex;flex-direction:column;';
+      
+      const header = document.createElement('div');
+      header.style.cssText = 'padding:10px 15px;background:white;border-bottom:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center;';
+      header.innerHTML = `
+        <h3 style="font-size:16px;font-weight:600;">Sélectionner localisation client</h3>
+        <button id="btn-close-fullscreen-client" style="background:none;border:none;font-size:24px;cursor:pointer;">✕</button>
+      `;
+      
+      const mapDiv = document.createElement('div');
+      mapDiv.id = 'map-fullscreen-client';
+      mapDiv.style.cssText = 'flex:1;';
+      
+      modal.appendChild(header);
+      modal.appendChild(mapDiv);
+      document.body.appendChild(modal);
+      
+      const newMap = L.map('map-fullscreen-client').setView([9.5370, -13.6773], 13);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap'
+      }).addTo(newMap);
+      
+      if (marker) {
+        const coords = marker.getLatLng();
+        L.marker([coords.lat, coords.lng], {
+          icon: L.divIcon({ className:'', html:'<div style="font-size:28px">📍</div>', iconSize:[32,32], iconAnchor:[16,16] })
+        }).addTo(newMap).bindPopup(`Adresse sélectionnée`).openPopup();
+      }
+      
+      let fullscreenMarker = null;
+      newMap.on('click', async ({ latlng: { lat, lng } }) => {
+        if (fullscreenMarker) fullscreenMarker.remove();
+        fullscreenMarker = L.marker([lat, lng], {
+          icon: L.divIcon({ className:'', html:'<div style="font-size:28px">📍</div>', iconSize:[32,32], iconAnchor:[16,16] })
+        }).addTo(newMap).bindPopup(`Localisation sélectionnée`).openPopup();
+        
+        // Update main map
+        if (marker) marker.remove();
+        marker = L.marker([lat, lng], {
+          icon: L.divIcon({ className:'', html:'<div style="font-size:20px">📍</div>', iconSize:[28,28], iconAnchor:[14,14] })
+        }).addTo(map);
+        
+        // Reverse geocode
+        await reverseGeocodeAndFill(lat, lng);
+        
+        newMap.invalidateSize();
+      });
+      
+      document.getElementById('btn-close-fullscreen-client').addEventListener('click', () => {
+        modal.remove();
+        window.map = map;
+        map.invalidateSize();
+      });
+      
+      newMap.invalidateSize();
+      isFullscreen = true;
+    }
+  });
+
+  // Reverse geocode and fill fields
+  async function reverseGeocodeAndFill(lat, lng) {
+    try {
+      const r = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=fr`,
+        { headers: { 'Accept-Language': 'fr' } }
+      );
+      const data = await r.json();
+      const addr = data.address || {};
+      
+      // Extract address components
+      const adresse = [
+        addr.road || addr.pedestrian || addr.footway || '',
+        addr.house_number || '',
+      ].filter(Boolean).join(' ') || data.display_name;
+      
+      const quartier = addr.suburb || addr.neighbourhood || addr.quarter || addr.village || '';
+      const commune = addr.city || addr.town || addr.municipality || '';
+      
+      // Fill form fields
+      document.querySelector('[name="adresse"]').value = adresse;
+      document.querySelector('[name="quartier"]').value = quartier;
+      document.querySelector('[name="commune"]').value = commune;
+      
+      // Show location info
+      document.getElementById('coords-display').textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      document.getElementById('location-info').classList.remove('hidden');
+    } catch (e) {
+      console.error('Erreur reverse geocode:', e);
+      document.getElementById('coords-display').textContent = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      document.getElementById('location-info').classList.remove('hidden');
+    }
+  }
+
+  // Map click handler
+  map.on('click', async ({ latlng: { lat, lng } }) => {
+    if (marker) marker.remove();
+    marker = L.marker([lat, lng], {
+      icon: L.divIcon({ className:'', html:'<div style="font-size:20px">📍</div>', iconSize:[28,28], iconAnchor:[14,14] })
+    }).addTo(map).bindPopup(`Localisation sélectionnée`).openPopup();
+    
+    await reverseGeocodeAndFill(lat, lng);
+  });
+</script>
 {% endblock %}

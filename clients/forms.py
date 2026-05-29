@@ -8,11 +8,26 @@ class ClientForm(forms.ModelForm):
         model = Client
         fields = ['nom', 'prenom', 'telephone', 'email', 'adresse', 'quartier', 'commune']
         widgets = {
-            'nom': forms.TextInput(attrs={'class': 'rounded border-slate-300 p-2 w-full'}),
-            'prenom': forms.TextInput(attrs={'class': 'rounded border-slate-300 p-2 w-full'}),
-            'telephone': forms.TextInput(attrs={'class': 'rounded border-slate-300 p-2 w-full'}),
-            'email': forms.EmailInput(attrs={'class': 'rounded border-slate-300 p-2 w-full'}),
-            'adresse': forms.Textarea(attrs={'class': 'rounded border-slate-300 p-2 w-full', 'rows': 3}),
-            'quartier': forms.TextInput(attrs={'class': 'rounded border-slate-300 p-2 w-full'}),
-            'commune': forms.TextInput(attrs={'class': 'rounded border-slate-300 p-2 w-full'}),
+            'nom': forms.TextInput(attrs={
+                'class': 'rounded-xl border border-slate-200 px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
+            }),
+            'prenom': forms.TextInput(attrs={
+                'class': 'rounded-xl border border-slate-200 px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
+            }),
+            'telephone': forms.TextInput(attrs={
+                'class': 'rounded-xl border border-slate-200 px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
+            }),
+            'email': forms.EmailInput(attrs={
+                'class': 'rounded-xl border border-slate-200 px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
+            }),
+            'adresse': forms.Textarea(attrs={
+                'class': 'rounded-xl border border-slate-200 px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500',
+                'rows': 2
+            }),
+            'quartier': forms.TextInput(attrs={
+                'class': 'rounded-xl border border-slate-200 px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
+            }),
+            'commune': forms.TextInput(attrs={
+                'class': 'rounded-xl border border-slate-200 px-3 py-2 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500'
+            }),
         }
