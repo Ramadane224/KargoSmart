@@ -3,9 +3,9 @@
 {% block page_title %}Discussion {{ conversation.livraison.code_livraison }}{% endblock %}
 
 {% block content %}
-<div class="grid gap-6 lg:grid-cols-4">
-  <!-- Infos livraison -->
-  <div class="lg:col-span-1">
+<div class="grid gap-4 lg:grid-cols-4 md:grid-cols-2 sm:grid-cols-1">
+  <!-- Infos livraison - Sidebar (caché sur mobile, visible lg) -->
+  <div class="lg:col-span-1 md:col-span-1 order-2 lg:order-1">
     <div class="rounded-2xl bg-white p-4 shadow-sm space-y-4">
       <div>
         <p class="text-xs font-semibold text-slate-500 uppercase">Livraison</p>
@@ -50,20 +50,20 @@
     </div>
   </div>
 
-  <!-- Chat -->
-  <div class="lg:col-span-3">
-    <div class="rounded-2xl bg-white shadow-sm overflow-hidden flex flex-col h-96">
+  <!-- Chat - Main (pleine largeur lg, puis sidebar à droite) -->
+  <div class="lg:col-span-3 md:col-span-1 sm:col-span-1 order-1 lg:order-2">
+    <div class="rounded-2xl bg-white shadow-sm overflow-hidden flex flex-col h-[500px] sm:h-96 lg:h-[600px]">
       <!-- Messages -->
-      <div id="messages-container" class="flex-1 overflow-y-auto p-4 space-y-3 bg-slate-50">
+      <div id="messages-container" class="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 bg-slate-50">
         {% for message in messages %}
         <div class="flex {% if message.auteur == request.user %}justify-end{% endif %}">
-          <div class="max-w-xs rounded-xl {% if message.auteur == request.user %}bg-blue-600 text-white{% else %}bg-white border border-slate-200{% endif %} px-4 py-2">
+          <div class="max-w-xs sm:max-w-sm rounded-xl {% if message.auteur == request.user %}bg-blue-600 text-white{% else %}bg-white border border-slate-200{% endif %} px-3 sm:px-4 py-2 text-xs sm:text-sm break-words">
             {% if message.auteur != request.user %}
             <p class="text-xs font-semibold {% if message.auteur == request.user %}text-blue-100{% else %}text-slate-500{% endif %} mb-1">
               {{ message.auteur.get_full_name|default:message.auteur.username }}
             </p>
             {% endif %}
-            <p class="text-sm">{{ message.contenu }}</p>
+            <p>{{ message.contenu }}</p>
             <p class="text-xs {% if message.auteur == request.user %}text-blue-200{% else %}text-slate-400{% endif %} mt-1">
               {{ message.date_envoi|date:"H:i" }}
             </p>
@@ -77,11 +77,11 @@
       </div>
 
       <!-- Formulaire d'envoi -->
-      <form id="form-message" class="border-t border-slate-200 p-4 bg-white flex gap-2">
+      <form id="form-message" class="border-t border-slate-200 p-3 sm:p-4 bg-white flex gap-2">
         {% csrf_token %}
         <input type="text" id="contenu" name="contenu" placeholder="Votre message..." 
-          class="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-        <button type="submit" class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+          class="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+        <button type="submit" class="rounded-xl bg-blue-600 px-3 sm:px-4 py-2 text-xs sm:text-sm font-semibold text-white hover:bg-blue-700 whitespace-nowrap">
           Envoyer
         </button>
       </form>
@@ -101,8 +101,6 @@
     if (!contenu) return;
     
     try {
-      const fd = new FormData();
-      fd.append('contenu', contenu);
       const res = await fetch('{% url "envoyer_message" conversation.pk %}', {
         method: 'POST',
         body: JSON.stringify({ contenu }),

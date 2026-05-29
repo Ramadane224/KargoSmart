@@ -24,7 +24,8 @@ router.register('clients', ClientViewSet, basename='api-client')
 router.register('notifications', NotificationViewSet, basename='api-notification')
 
 urlpatterns = [
-    path('', include(router.urls)),
+    # Patterns spécifiques AVANT le router (pour éviter capture)
+    path('simuler-prix/', simuler_prix, name='simuler_prix'),
     # GPS
     path('gps/position/', mettre_a_jour_position, name='api-gps-position'),
     path('gps/livreurs/', positions_livreurs_actifs, name='api-gps-livreurs'),
@@ -35,6 +36,6 @@ urlpatterns = [
     path('geo/geocoder/', geocoder_adresse, name='geocoder_adresse'),
     path('geo/itineraire/', calculer_itineraire, name='calculer_itineraire'),
     path('gps/position-reelle/', position_reelle_livreur, name='position_reelle'),
-    # Simulation prix
-    path('livraisons/simuler-prix/', simuler_prix, name='simuler_prix'),
+    # Router (doit être DERNIER)
+    path('', include(router.urls)),
 ]
