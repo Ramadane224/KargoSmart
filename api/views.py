@@ -220,6 +220,52 @@ def meilleur_livreur(request, livraison_pk):
     return Response(result)
 
 
+@api_view(['GET'])
+@permission_classes([IsAuthenticated, EstAdminOuGestionnaire])
+def suggerer_livreur(request):
+    """
+    Suggère le livreur disponible le plus proche d'une coordonnée donnée.
+    Params: lat (latitude), lon (longitude)
+    """
+    try:
+        lat = float(request.GET.get('lat'))
+        lon = float(request.GET.get('lon'))
+    except (TypeError, ValueError):
+        return Response({'error': 'Paramètres lat/lon invalides'}, status=400)
+    
+    # Chercher les livreurs actifs avec position GPS
+    positions = PositionLivreur.objects.select_related('livreur__profil').filter(
+        livreur__est_actif=True, livreur__est_disponible=True
+    )
+    
+    if not positions.exists():
+        # Fallback: livreur avec le moins de livraisons actives
+        livreur = (
+            ProfilLivreur.objects.filter(est_actif=True, est_disponible=True)
+            .order_by('total_livraisons')
+            .first()
+        )
+        if not livreur:
+            return Response({'error': 'Aucun livreur disponible'}, status=404)
+        return Response(ProfilLivreurSerializer(livreur).data)
+    
+    meilleur = None
+    dist_min = float('inf')
+    for pos in positions:
+        d = haversine_km(lat, lon, pos.latitude, pos.longitude)
+        if d < dist_min:
+            dist_min = d
+            meilleur = pos.livreur
+    
+    if not meilleur:
+        return Response({'error': 'Aucun livreur disponible'}, status=404)
+    
+    result = ProfilLivreurSerializer(meilleur).data
+    result['distance_km'] = round(dist_min, 2)
+    result['duree_estimee_min'] = int((dist_min / 25) * 60)
+    return Response(result)
+
+
 # ─── TARIFICATION / SIMULATION DE PRIX ───────────────────────────────────────
 from livraisons.tarification import calculer_cout_livraison
 

@@ -10,11 +10,17 @@ class LivraisonForm(forms.ModelForm):
         if 'cout_estime' in self.fields:
             self.fields['cout_estime'].required = False
             self.fields['cout_estime'].widget = forms.HiddenInput()
+        
+        # Rendre le champ livreur optionnel (peut être assigné après création)
+        if 'livreur' in self.fields:
+            self.fields['livreur'].required = False
+            self.fields['livreur'].queryset = ProfilLivreur.objects.filter(est_actif=True).select_related('profil')
 
     class Meta:
         model = Livraison
         fields = [
             'client',
+            'livreur',
             'adresse_depart',
             'quartier_depart',
             'latitude_depart',

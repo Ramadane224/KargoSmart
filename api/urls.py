@@ -10,6 +10,7 @@ from .views import (
     positions_livreurs_actifs,
     tracking_livraison,
     meilleur_livreur,
+    suggerer_livreur,
     simuler_prix,
 )
 from .geolocalisation import (
@@ -26,6 +27,7 @@ router.register('notifications', NotificationViewSet, basename='api-notification
 urlpatterns = [
     # Patterns spécifiques AVANT le router (pour éviter capture)
     path('simuler-prix/', simuler_prix, name='simuler_prix'),
+    path('suggerer-livreur/', suggerer_livreur, name='suggerer_livreur'),
     # GPS
     path('gps/position/', mettre_a_jour_position, name='api-gps-position'),
     path('gps/livreurs/', positions_livreurs_actifs, name='api-gps-livreurs'),
