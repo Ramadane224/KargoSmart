@@ -373,7 +373,7 @@
         type_colis: type,
         est_fragile: fragile,
       });
-      const r2 = await fetch(`/api/livraisons/simuler-prix/?${q.toString()}`);
+      const r2 = await fetch(`/api/simuler-prix/?${q.toString()}`);
       const prix = await r2.json();
       if (prix && !prix.erreur) {
         document.getElementById('prix-base').textContent = prix.tarif_base_formate || '—';

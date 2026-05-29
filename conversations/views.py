@@ -15,7 +15,7 @@ from .models import Conversation, Message, LectureMessage
 class ListeConversationsView(LoginRequiredMixin, ListView):
     """Liste les conversations de l'utilisateur."""
     model = Conversation
-    template_name = 'messages/conversations.html'
+    template_name = 'conversations/conversation_list.html'
     context_object_name = 'conversations'
     paginate_by = 20
 
@@ -26,7 +26,7 @@ class ListeConversationsView(LoginRequiredMixin, ListView):
 class DetailConversationView(LoginRequiredMixin, DetailView):
     """Affiche une conversation complète."""
     model = Conversation
-    template_name = 'messages/detail_conversation.html'
+    template_name = 'conversations/conversation_detail.html'
     context_object_name = 'conversation'
 
     def get_queryset(self):

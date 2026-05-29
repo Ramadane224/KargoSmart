@@ -30,11 +30,13 @@
       <span class="w-5 text-center">💬</span> Messages
     </a>
 
+    {% if user.role == 'GESTIONNAIRE' or user.role == 'ADMINISTRATEUR' %}
     <a href="/clients/"
        class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors
               {% if 'client' in request.resolver_match.url_name|default:'' %}bg-blue-600 text-white shadow-sm{% else %}text-slate-300 hover:bg-slate-700/60 hover:text-white{% endif %}">
       <span class="w-5 text-center">👥</span> Clients
     </a>
+    {% endif %}
 
     <a href="/notifications/"
        class="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors
