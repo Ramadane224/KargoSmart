@@ -2,7 +2,7 @@ import uuid
 
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView, View
@@ -128,7 +128,9 @@ class CreerLivraisonView(LoginRequiredMixin, CreateView):
 
     def dispatch(self, request, *args, **kwargs):
         if request.user.role not in ['ADMINISTRATEUR', 'GESTIONNAIRE']:
-            return HttpResponseForbidden('Accès réservé aux administrateurs et gestionnaires pour créer une livraison.')
+            from django.contrib import messages
+            messages.error(request, '⚠️ Accès réservé aux administrateurs et gestionnaires pour créer une livraison.')
+            return redirect('liste_livraisons')
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
