@@ -167,7 +167,7 @@
        class="rounded-xl border border-slate-200 px-5 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-50">
       Annuler
     </a>
-    <button type="submit"
+    <button type="submit" id="btn-submit-livraison"
       class="rounded-xl bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 shadow-sm">
       Créer la livraison
     </button>
@@ -175,6 +175,19 @@
 
 </form>
 </div>
+
+<!-- Modal de confirmation -->
+<div id="modal-success" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;">
+  <div style="background:white;border-radius:12px;padding:30px;max-width:400px;text-align:center;box-shadow:0 20px 25px rgba(0,0,0,0.15);">
+    <div style="font-size:48px;margin-bottom:15px;">✅</div>
+    <h2 style="font-size:20px;font-weight:600;margin-bottom:10px;color:#1f2937;">Livraison créée avec succès!</h2>
+    <p id="success-msg" style="color:#6b7280;margin-bottom:20px;font-size:14px;"></p>
+    <button id="btn-close-modal" style="background:#3b82f6;color:white;border:none;padding:10px 20px;border-radius:8px;cursor:pointer;font-weight:500;width:100%;">
+      Voir les livraisons
+    </button>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -484,6 +497,57 @@
     } finally {
       btn.disabled = false;
       btn.textContent = '⚡ Suggérer';
+    }
+  });
+
+  // Gestion de la soumission du formulaire avec AJAX
+  const form = document.querySelector('form');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    const submitBtn = document.getElementById('btn-submit-livraison');
+    const originalText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = '⏳ Création en cours...';
+    
+    try {
+      const formData = new FormData(form);
+      const response = await fetch(form.action || form.getAttribute('action') || window.location.href, {
+        method: 'POST',
+        body: formData,
+        headers: { 'X-Requested-With': 'XMLHttpRequest' }
+      });
+      
+      if (response.ok) {
+        const html = await response.text();
+        // Vérifier s'il y a des erreurs de formulaire
+        if (html.includes('form.errors') || html.includes('Erreur')) {
+          form.innerHTML = html;
+          alert('⚠️ Erreur lors de la création. Veuillez vérifier les champs.');
+        } else {
+          // Succès - afficher le modal
+          const codeMatch = html.match(/KS-[A-Z0-9]{6}/);
+          const code = codeMatch ? codeMatch[0] : '';
+          
+          document.getElementById('success-msg').textContent = 
+            code ? `Code de livraison: ${code}` : 'Livraison enregistrée avec succès.';
+          
+          const modal = document.getElementById('modal-success');
+          modal.style.display = 'flex';
+          
+          document.getElementById('btn-close-modal').addEventListener('click', () => {
+            window.location.href = '/livraisons/';
+          });
+        }
+      } else {
+        alert('❌ Erreur lors de la création de la livraison');
+      }
+    } catch (error) {
+      console.error('Erreur AJAX:', error);
+      alert('❌ Erreur serveur: ' + error.message);
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
     }
   });
 </script>
