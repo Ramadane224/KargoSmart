@@ -499,56 +499,5 @@
       btn.textContent = '⚡ Suggérer';
     }
   });
-
-  // Gestion de la soumission du formulaire avec AJAX
-  const form = document.querySelector('form');
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    
-    const submitBtn = document.getElementById('btn-submit-livraison');
-    const originalText = submitBtn.textContent;
-    submitBtn.disabled = true;
-    submitBtn.textContent = '⏳ Création en cours...';
-    
-    try {
-      const formData = new FormData(form);
-      const response = await fetch(form.action || form.getAttribute('action') || window.location.href, {
-        method: 'POST',
-        body: formData,
-        headers: { 'X-Requested-With': 'XMLHttpRequest' }
-      });
-      
-      if (response.ok) {
-        const html = await response.text();
-        // Vérifier s'il y a des erreurs de formulaire
-        if (html.includes('form.errors') || html.includes('Erreur')) {
-          form.innerHTML = html;
-          alert('⚠️ Erreur lors de la création. Veuillez vérifier les champs.');
-        } else {
-          // Succès - afficher le modal
-          const codeMatch = html.match(/KS-[A-Z0-9]{6}/);
-          const code = codeMatch ? codeMatch[0] : '';
-          
-          document.getElementById('success-msg').textContent = 
-            code ? `Code de livraison: ${code}` : 'Livraison enregistrée avec succès.';
-          
-          const modal = document.getElementById('modal-success');
-          modal.style.display = 'flex';
-          
-          document.getElementById('btn-close-modal').addEventListener('click', () => {
-            window.location.href = '/livraisons/';
-          });
-        }
-      } else {
-        alert('❌ Erreur lors de la création de la livraison');
-      }
-    } catch (error) {
-      console.error('Erreur AJAX:', error);
-      alert('❌ Erreur serveur: ' + error.message);
-    } finally {
-      submitBtn.disabled = false;
-      submitBtn.textContent = originalText;
-    }
-  });
 </script>
 {% endblock %}
