@@ -1,8 +1,8 @@
 import uuid
 
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.http import JsonResponse, HttpResponseBadRequest
-from django.shortcuts import get_object_or_404, redirect
+from django.http import JsonResponse, HttpResponseBadRequest, HttpResponseForbidden
+from django.shortcuts import get_object_or_404
 from django.urls import reverse_lazy
 from django.utils import timezone
 from django.views.generic import CreateView, DeleteView, DetailView, ListView, UpdateView, View
@@ -82,7 +82,6 @@ class DetailLivraisonView(LoginRequiredMixin, DetailView):
 
     def dispatch(self, request, *args, **kwargs):
         from utilisateurs.permissions import est_gestionnaire, est_livreur, est_client
-        from clients.models import Client
         obj = self.get_object()
         
         if est_gestionnaire(request.user):
@@ -90,28 +89,19 @@ class DetailLivraisonView(LoginRequiredMixin, DetailView):
         elif est_livreur(request.user):
             try:
                 if obj.livreur.profil != request.user:
-                    from django.contrib import messages
-                    messages.error(request, '⚠️ Vous ne pouvez voir que vos propres livraisons.')
-                    return redirect('liste_livraisons')
+                    return HttpResponseForbidden('Vous ne pouvez voir que vos propres livraisons.')
             except:
-                from django.contrib import messages
-                messages.error(request, '⚠️ Accès refusé.')
-                return redirect('tableau_de_bord')
+                return HttpResponseForbidden('Accès refusé.')
         elif est_client(request.user):
             try:
+                from clients.models import Client
                 client = Client.objects.filter(email=request.user.email).first() or Client.objects.filter(telephone=request.user.telephone).first()
                 if not client or obj.client != client:
-                    from django.contrib import messages
-                    messages.error(request, '⚠️ Vous ne pouvez voir que vos propres livraisons.')
-                    return redirect('tableau_de_bord')
+                    return HttpResponseForbidden('Vous ne pouvez voir que vos propres livraisons.')
             except:
-                from django.contrib import messages
-                messages.error(request, '⚠️ Accès refusé.')
-                return redirect('tableau_de_bord')
+                return HttpResponseForbidden('Accès refusé.')
         else:
-            from django.contrib import messages
-            messages.error(request, '⚠️ Accès refusé.')
-            return redirect('tableau_de_bord')
+            return HttpResponseForbidden('Accès refusé.')
         
         return super().dispatch(request, *args, **kwargs)
 
@@ -138,9 +128,7 @@ class CreerLivraisonView(LoginRequiredMixin, CreateView):
 
     def dispatch(self, request, *args, **kwargs):
         if request.user.role not in ['ADMINISTRATEUR', 'GESTIONNAIRE']:
-            from django.contrib import messages
-            messages.error(request, '⚠️ Accès réservé aux administrateurs et gestionnaires pour créer une livraison.')
-            return redirect('liste_livraisons')
+            return HttpResponseForbidden('Accès réservé aux administrateurs et gestionnaires pour créer une livraison.')
         return super().dispatch(request, *args, **kwargs)
 
     def form_valid(self, form):
@@ -175,9 +163,7 @@ class ModifierLivraisonView(LoginRequiredMixin, UpdateView):
 
     def dispatch(self, request, *args, **kwargs):
         if request.user.role not in ['ADMINISTRATEUR', 'GESTIONNAIRE']:
-            from django.contrib import messages
-            messages.error(request, '⚠️ Accès réservé aux administrateurs et gestionnaires pour modifier une livraison.')
-            return redirect('liste_livraisons')
+            return HttpResponseForbidden('Accès réservé aux administrateurs et gestionnaires pour modifier une livraison.')
         return super().dispatch(request, *args, **kwargs)
 
 
@@ -189,9 +175,7 @@ class SupprimerLivraisonView(AdminRequiredMixin, LoginRequiredMixin, DeleteView)
 
     def dispatch(self, request, *args, **kwargs):
         if request.user.role in ['LIVREUR', 'CLIENT']:
-            from django.contrib import messages
-            messages.error(request, '⚠️ Accès refusé aux livreurs et clients pour la suppression de livraison.')
-            return redirect('liste_livraisons')
+            return HttpResponseForbidden('Accès refusé aux livreurs et clients pour la suppression de livraison.')
         return super().dispatch(request, *args, **kwargs)
 
 
@@ -244,9 +228,7 @@ class AnnulerLivraisonView(LoginRequiredMixin, View):
     def post(self, request, pk):
         livraison = get_object_or_404(Livraison, pk=pk)
         if livraison.statut not in [StatutLivraison.EN_ATTENTE, StatutLivraison.ASSIGNEE]:
-            from django.contrib import messages
-            messages.error(request, '⚠️ Impossible d\'annuler à ce stade.')
-            return redirect('detail_livraison', pk=pk)
+            return HttpResponseForbidden('Impossible d\'annuler à ce stade')
         ancien = livraison.statut
         livraison.statut = StatutLivraison.ANNULEE
         livraison.save()

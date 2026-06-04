@@ -1,6 +1,6 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db.models import Q
-from django.shortcuts import redirect
+from django.http import HttpResponseForbidden
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, ListView, UpdateView
 
@@ -28,9 +28,7 @@ class ListeClientsView(LoginRequiredMixin, ListView):
             return super().dispatch(request, *args, **kwargs)
         else:
             # Client n'y a pas accès
-            from django.contrib import messages
-            messages.error(request, '⚠️ Accès refusé. Vous ne pouvez pas consulter la liste des clients.')
-            return redirect('tableau_de_bord')
+            return HttpResponseForbidden('Accès refusé.')
 
     def get_queryset(self):
         from utilisateurs.permissions import est_gestionnaire, est_livreur
@@ -83,17 +81,11 @@ class DetailClientView(LoginRequiredMixin, DetailView):
                     livreur=livreur, client=obj
                 ).exists()
                 if not has_livraison:
-                    from django.contrib import messages
-                    messages.error(request, '⚠️ Accès refusé. Vous n\'avez pas accès à ce client.')
-                    return redirect('liste_clients')
+                    return HttpResponseForbidden('Accès refusé.')
             except ProfilLivreur.DoesNotExist:
-                from django.contrib import messages
-                messages.error(request, '⚠️ Accès refusé.')
-                return redirect('tableau_de_bord')
+                return HttpResponseForbidden('Accès refusé.')
         else:
-            from django.contrib import messages
-            messages.error(request, '⚠️ Accès refusé.')
-            return redirect('tableau_de_bord')
+            return HttpResponseForbidden('Accès refusé.')
         
         return super().dispatch(request, *args, **kwargs)
 
