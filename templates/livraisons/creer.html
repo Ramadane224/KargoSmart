@@ -314,6 +314,42 @@
   let clicks = 0, markers = [], polyline = null;
   const hint = document.getElementById('gps-hint');
 
+  // Mapping Conakry communes (2024 reform) from Nominatim suburb/neighbourhood to official communes
+  const CONAKRY_COMMUNES_MAP = {
+    'kaloum': 'Kaloum',
+    'dixinn': 'Dixinn',
+    'matam': 'Matam',
+    'matoto': 'Matoto',
+    'ratoma': 'Ratoma',
+    'kassa': 'Kassa',
+    'lambanyi': 'Lambanyi',
+    'sonfonia': 'Sonfonia',
+    'gbessia': 'Gbessia',
+    'tombolia': 'Tombolia',
+    'kagbélén': 'Kagbélén',
+    'sanoyah': 'Sanoyah',
+    'manéah': 'Manéah',
+  };
+
+  function mapConakryCommune(nominatimAddr) {
+    const city = (nominatimAddr.city || nominatimAddr.town || '').toLowerCase();
+    if (city !== 'conakry') return null;
+    
+    const suburb = (nominatimAddr.suburb || '').toLowerCase();
+    const neighbourhood = (nominatimAddr.neighbourhood || '').toLowerCase();
+    const quarter = (nominatimAddr.quarter || '').toLowerCase();
+    
+    for (const [key, commune] of Object.entries(CONAKRY_COMMUNES_MAP)) {
+      if (suburb === key || neighbourhood === key || quarter === key) {
+        return commune;
+      }
+      if (suburb.includes(key) || neighbourhood.includes(key) || quarter.includes(key)) {
+        return commune;
+      }
+    }
+    return null;
+  }
+
   async function reverseGeocode(lat, lng) {
     try {
       const r = await fetch(

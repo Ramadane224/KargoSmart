@@ -104,6 +104,42 @@
 
   let marker = null;
 
+  // Mapping Conakry communes (2024 reform) from Nominatim suburb/neighbourhood to official communes
+  const CONAKRY_COMMUNES_MAP = {
+    'kaloum': 'Kaloum',
+    'dixinn': 'Dixinn',
+    'matam': 'Matam',
+    'matoto': 'Matoto',
+    'ratoma': 'Ratoma',
+    'kassa': 'Kassa',
+    'lambanyi': 'Lambanyi',
+    'sonfonia': 'Sonfonia',
+    'gbessia': 'Gbessia',
+    'tombolia': 'Tombolia',
+    'kagbélén': 'Kagbélén',
+    'sanoyah': 'Sanoyah',
+    'manéah': 'Manéah',
+  };
+
+  function mapConakryCommune(nominatimAddr) {
+    const city = (nominatimAddr.city || nominatimAddr.town || '').toLowerCase();
+    if (city !== 'conakry') return null;
+    
+    const suburb = (nominatimAddr.suburb || '').toLowerCase();
+    const neighbourhood = (nominatimAddr.neighbourhood || '').toLowerCase();
+    const quarter = (nominatimAddr.quarter || '').toLowerCase();
+    
+    for (const [key, commune] of Object.entries(CONAKRY_COMMUNES_MAP)) {
+      if (suburb === key || neighbourhood === key || quarter === key) {
+        return commune;
+      }
+      if (suburb.includes(key) || neighbourhood.includes(key) || quarter.includes(key)) {
+        return commune;
+      }
+    }
+    return null;
+  }
+
   // Fullscreen mode
   const btnFullscreen = document.getElementById('btn-fullscreen-map-client');
   const mapContainer = document.getElementById('map-client');
@@ -190,7 +226,15 @@
       ].filter(Boolean).join(' ') || data.display_name;
       
       const quartier = addr.suburb || addr.neighbourhood || addr.quarter || addr.village || '';
-      const commune = addr.city || addr.town || addr.municipality || '';
+      
+      // Handle Conakry communes specially (2024 reform: 13 official communes)
+      let commune = addr.city || addr.town || addr.municipality || '';
+      if (commune.toLowerCase() === 'conakry') {
+        const conakryCommune = mapConakryCommune(addr);
+        if (conakryCommune) {
+          commune = conakryCommune;
+        }
+      }
       
       // Fill form fields
       document.querySelector('[name="adresse"]').value = adresse;
