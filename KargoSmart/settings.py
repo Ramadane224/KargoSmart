@@ -44,6 +44,9 @@ if _railway_domain:
     ALLOWED_HOSTS.append(_railway_domain)
     CSRF_TRUSTED_ORIGINS = [f'https://{_railway_domain}']
 
+# Accept any *.up.railway.app subdomain
+ALLOWED_HOSTS.append('.up.railway.app')
+
 
 # Application definition
 
