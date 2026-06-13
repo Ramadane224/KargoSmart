@@ -42,6 +42,7 @@ ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'])
 _railway_domain = os.environ.get('RAILWAY_PUBLIC_DOMAIN')
 if _railway_domain:
     ALLOWED_HOSTS.append(_railway_domain)
+    CSRF_TRUSTED_ORIGINS = [f'https://{_railway_domain}']
 
 
 # Application definition
