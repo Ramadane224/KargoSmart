@@ -111,15 +111,12 @@ if _database_url:
 else:
     DATABASES = {
         'default': {
-            'ENGINE': 'django.db.backends.mysql',
+            'ENGINE': 'django.db.backends.postgresql',
             'NAME': env('DB_NAME', default='kargosmart_db'),
-            'USER': env('DB_USER', default='root'),
-            'PASSWORD': env('DB_PASSWORD', default='Ramzey_25'),
+            'USER': env('DB_USER', default='postgres'),
+            'PASSWORD': env('DB_PASSWORD', default=''),
             'HOST': env('DB_HOST', default='127.0.0.1'),
-            'PORT': env('DB_PORT', default='3306'),
-            'OPTIONS': {
-                'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
-            },
+            'PORT': env('DB_PORT', default='5432'),
         }
     }
 
