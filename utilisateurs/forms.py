@@ -11,7 +11,10 @@ class ConnexionForm(AuthenticationForm):
 
 
 class InscriptionForm(UserCreationForm):
-    role = forms.ChoiceField(choices=Role.choices, initial=Role.GESTIONNAIRE)
+    role = forms.ChoiceField(
+        choices=[(r.value, r.label) for r in Role if r != Role.ADMINISTRATEUR],
+        initial=Role.GESTIONNAIRE
+    )
 
     class Meta:
         model = get_user_model()
