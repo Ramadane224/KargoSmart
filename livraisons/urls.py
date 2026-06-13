@@ -10,6 +10,7 @@ from .views import (
     ListeLivraisonsView,
     ModifierLivraisonView,
     PaiementMobileView,
+    PaymentCallbackView,
     SupprimerLivraisonView,
 )
 
@@ -24,4 +25,5 @@ urlpatterns = [
     path('<int:pk>/annuler/', AnnulerLivraisonView.as_view(), name='annuler_livraison'),
     path('<int:pk>/paiement/', PaiementMobileView.as_view(), name='paiement_mobile'),
     path('<int:pk>/paiement/confirmer/', ConfirmerPaiementView.as_view(), name='confirmer_paiement'),
+    path('paiement/callback/', PaymentCallbackView.as_view(), name='paiement_callback'),
 ]

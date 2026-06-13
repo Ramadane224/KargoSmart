@@ -1,5 +1,3 @@
-import random
-
 from django.db.models.signals import post_save, pre_save
 from django.dispatch import receiver
 
@@ -14,10 +12,13 @@ def livraison_pre_save(sender, instance, **kwargs):
         try:
             previous = sender.objects.get(pk=instance.pk)
             instance._previous_statut = previous.statut
+            instance._previous_livreur = previous.livreur
         except sender.DoesNotExist:
             instance._previous_statut = None
+            instance._previous_livreur = None
     else:
         instance._previous_statut = None
+        instance._previous_livreur = None
 
 
 @receiver(post_save, sender=Livraison)

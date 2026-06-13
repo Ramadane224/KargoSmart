@@ -177,7 +177,7 @@
 </div>
 
 <!-- Modal de confirmation -->
-<div id="modal-success" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;">
+<div id="modal-success" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;align-items:center;justify-content:center;">
   <div style="background:white;border-radius:12px;padding:30px;max-width:400px;text-align:center;box-shadow:0 20px 25px rgba(0,0,0,0.15);">
     <div style="font-size:48px;margin-bottom:15px;">✅</div>
     <h2 style="font-size:20px;font-weight:600;margin-bottom:10px;color:#1f2937;">Livraison créée avec succès!</h2>
@@ -193,8 +193,10 @@
 {% block extra_js %}
 <script>
   const map = L.map('map-select').setView([9.5370, -13.6773], 13);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap'
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap © CARTO',
+    subdomains: 'abcd',
+    maxZoom: 19,
   }).addTo(map);
 
   // Mode plein écran
@@ -227,8 +229,10 @@
       setTimeout(() => {
         map.remove();
         const newMap = L.map(mapDiv).setView([9.5370, -13.6773], 13);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '© OpenStreetMap'
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+          attribution: '© OpenStreetMap © CARTO',
+          subdomains: 'abcd',
+          maxZoom: 19,
         }).addTo(newMap);
         
         // Réattacher les markers et polyline
@@ -289,8 +293,10 @@
         document.getElementById('btn-close-fullscreen').addEventListener('click', () => {
           modal.remove();
           const originalMap = L.map('map-select').setView([9.5370, -13.6773], 13);
-          L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            attribution: '© OpenStreetMap'
+          L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+            attribution: '© OpenStreetMap © CARTO',
+            subdomains: 'abcd',
+            maxZoom: 19,
           }).addTo(originalMap);
           
           if (document.getElementById('lat_depart').value) {
@@ -499,5 +505,13 @@
       btn.textContent = '⚡ Suggérer';
     }
   });
+
+  const btnCloseModal = document.getElementById('btn-close-modal');
+  if (btnCloseModal) {
+    btnCloseModal.addEventListener('click', function () {
+      document.getElementById('modal-success').style.display = 'none';
+      window.location.href = '/livraisons/';
+    });
+  }
 </script>
 {% endblock %}

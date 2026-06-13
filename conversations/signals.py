@@ -21,7 +21,7 @@ def creer_conversation_livraison(sender, instance, created, **kwargs):
             client_profil = Profil.objects.get(email=instance.client.email)
             if client_profil not in participants:
                 participants.append(client_profil)
-        except:
+        except Exception:
             pass  # Client n'a pas de Profil
         
         # Ajouter le livreur si assigné
@@ -32,12 +32,19 @@ def creer_conversation_livraison(sender, instance, created, **kwargs):
 
 
 @receiver(post_save, sender=Livraison)
-def ajouter_livreur_conversation(sender, instance, update_fields, **kwargs):
-    """Ajoute le livreur à la conversation quand il est assigné."""
-    if update_fields and 'livreur' in update_fields and instance.livreur:
-        try:
-            conversation = instance.conversation
-            if instance.livreur.profil not in conversation.participants.all():
-                conversation.participants.add(instance.livreur.profil)
-        except Conversation.DoesNotExist:
-            pass
+def ajouter_livreur_conversation(sender, instance, created, **kwargs):
+    """
+    Ajoute le livreur à la conversation quand il est assigné.
+    FIX : utilise _previous_livreur au lieu de update_fields (toujours None).
+    """
+    if created:
+        return
+    previous_livreur = getattr(instance, '_previous_livreur', None)
+    if not instance.livreur or instance.livreur == previous_livreur:
+        return
+    try:
+        conversation = instance.conversation
+        if instance.livreur.profil not in conversation.participants.all():
+            conversation.participants.add(instance.livreur.profil)
+    except Conversation.DoesNotExist:
+        pass

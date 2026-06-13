@@ -1,5 +1,6 @@
 import json
 
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, render
@@ -19,6 +20,11 @@ class ListeConversationsView(LoginRequiredMixin, ListView):
     context_object_name = 'conversations'
     paginate_by = 20
 
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and request.user.role == 'ADMINISTRATEUR':
+            return HttpResponseForbidden('Accès réservé aux gestionnaires et livreurs.')
+        return super().dispatch(request, *args, **kwargs)
+
     def get_queryset(self):
         return Conversation.objects.filter(participants=self.request.user).select_related('livraison__client', 'livraison__livreur__profil')
 
@@ -28,6 +34,11 @@ class DetailConversationView(LoginRequiredMixin, DetailView):
     model = Conversation
     template_name = 'conversations/conversation_detail.html'
     context_object_name = 'conversation'
+
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.is_authenticated and request.user.role == 'ADMINISTRATEUR':
+            return HttpResponseForbidden('Accès non autorisé.')
+        return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
         return Conversation.objects.filter(participants=self.request.user)
@@ -46,9 +57,13 @@ class DetailConversationView(LoginRequiredMixin, DetailView):
         return ctx
 
 
+@login_required
 @require_http_methods(["POST"])
 def envoyer_message(request, conversation_pk):
     """Envoie un message dans une conversation (AJAX)."""
+    if request.user.role == 'ADMINISTRATEUR':
+        return JsonResponse({'erreur': 'Accès non autorisé'}, status=403)
+
     conversation = get_object_or_404(Conversation, pk=conversation_pk)
     
     if request.user not in conversation.participants.all():

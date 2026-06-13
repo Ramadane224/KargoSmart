@@ -5,11 +5,12 @@
  */
 
 class GPSSimulator {
-  constructor(livraisonId, depart, arrivee, onUpdate) {
+  constructor(livraisonId, depart, arrivee, onUpdate, onStop) {
     this.livraisonId = livraisonId;
     this.depart = depart;
     this.arrivee = arrivee;
     this.onUpdate = onUpdate;
+    this.onStop = onStop;
     this.step = 0;
     this.totalSteps = 30;
     this.timer = null;
@@ -27,8 +28,12 @@ class GPSSimulator {
   }
 
   stop() {
+    if (!this.running) return;
     this.running = false;
     clearInterval(this.timer);
+    if (typeof this.onStop === 'function') {
+      this.onStop();
+    }
   }
 
   _pos(ratio) {
@@ -78,7 +83,9 @@ class GPSSimulator {
         .catch(() => {});
     }
 
-    if (progression >= 100) this.stop();
+    if (progression >= 100) {
+      this.stop();
+    }
   }
 }
 

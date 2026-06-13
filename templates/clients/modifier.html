@@ -3,18 +3,76 @@
 {% block title %}Modifier client - KargoSmart{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-2xl rounded-3xl bg-white p-6 shadow-sm">
+<div class="mx-auto max-w-3xl rounded-3xl bg-white p-6 shadow-sm">
     <h2 class="text-2xl font-semibold text-slate-900">Modifier un client</h2>
-    <form method="post" class="mt-6 grid gap-4">
+    <form method="post" class="mt-6 grid gap-6">
         {% csrf_token %}
-        {% for field in form %}
+        {% if form.non_field_errors %}
+        <div class="rounded-xl bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
+            {% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="grid gap-4 md:grid-cols-2">
             <div>
-                <label class="mb-2 block text-sm font-medium text-slate-700">{{ field.label }}</label>
-                {{ field }}
-                <p class="text-xs text-red-500">{{ field.errors }}</p>
+                <label class="mb-2 block text-sm font-medium text-slate-700">{{ form.nom.label }}</label>
+                {{ form.nom }}
+                <p class="text-xs text-red-500">{{ form.nom.errors }}</p>
             </div>
-        {% endfor %}
-        <button type="submit" class="mt-4 rounded-2xl bg-blue-600 px-4 py-3 text-white hover:bg-blue-700">Enregistrer</button>
+            <div>
+                <label class="mb-2 block text-sm font-medium text-slate-700">{{ form.prenom.label }}</label>
+                {{ form.prenom }}
+                <p class="text-xs text-red-500">{{ form.prenom.errors }}</p>
+            </div>
+            <div>
+                <label class="mb-2 block text-sm font-medium text-slate-700">{{ form.telephone.label }}</label>
+                {{ form.telephone }}
+                <p class="text-xs text-red-500">{{ form.telephone.errors }}</p>
+            </div>
+            <div>
+                <label class="mb-2 block text-sm font-medium text-slate-700">{{ form.email.label }}</label>
+                {{ form.email }}
+                <p class="text-xs text-red-500">{{ form.email.errors }}</p>
+            </div>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2">
+            <div>
+                <label class="mb-2 block text-sm font-medium text-slate-700">{{ form.adresse.label }}</label>
+                {{ form.adresse }}
+                <p class="text-xs text-red-500">{{ form.adresse.errors }}</p>
+            </div>
+            <div>
+                <label class="mb-2 block text-sm font-medium text-slate-700">{{ form.quartier.label }}</label>
+                {{ form.quartier }}
+                <p class="text-xs text-red-500">{{ form.quartier.errors }}</p>
+            </div>
+        </div>
+
+        <div class="grid gap-4 md:grid-cols-2">
+            <div>
+                <label class="mb-2 block text-sm font-medium text-slate-700">{{ form.commune.label }}</label>
+                {{ form.commune }}
+                <p class="text-xs text-red-500">{{ form.commune.errors }}</p>
+            </div>
+            <div class="flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4">
+                {{ form.est_actif }}
+                <div>
+                    <p class="text-sm font-medium text-slate-800">{{ form.est_actif.label }}</p>
+                    <p class="text-xs text-slate-500">Activer ou désactiver le client.</p>
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <label class="mb-2 block text-sm font-medium text-slate-700">{{ form.notes_internes.label }}</label>
+            {{ form.notes_internes }}
+            <p class="text-xs text-red-500">{{ form.notes_internes.errors }}</p>
+        </div>
+
+        <button type="submit" class="mt-2 inline-flex items-center justify-center rounded-2xl bg-blue-600 px-5 py-3 text-sm font-semibold text-white hover:bg-blue-700">
+            Enregistrer
+        </button>
     </form>
 </div>
 {% endblock %}

@@ -32,13 +32,22 @@ class ListeClientsView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         from utilisateurs.permissions import est_gestionnaire, est_livreur
-        from utilisateurs.models import ProfilLivreur
-        
+        from utilisateurs.models import Profil, ProfilLivreur
+
         queryset = Client.objects.filter(est_actif=True)
         query = self.request.GET.get('q')
-        
+
+        # Exclure les clients orphelins si leur profil utilisateur a été supprimé.
+        active_emails = list(Profil.objects.values_list('email', flat=True))
+        active_telephones = list(Profil.objects.values_list('telephone', flat=True))
+        if active_emails or active_telephones:
+            queryset = queryset.filter(
+                Q(email__in=active_emails) | Q(email__isnull=True) | Q(email__exact='') |
+                Q(telephone__in=active_telephones) | Q(telephone__isnull=True) | Q(telephone__exact='')
+            )
+
         if est_gestionnaire(self.request.user):
-            # Admin/Gestion voient tous les clients
+            # Admin/Gestion voient tous les clients actifs
             pass
         elif est_livreur(self.request.user):
             # Livreur ne voit que les clients de ses livraisons
@@ -51,7 +60,7 @@ class ListeClientsView(LoginRequiredMixin, ListView):
                 queryset = queryset.filter(id__in=clients_ids)
             except ProfilLivreur.DoesNotExist:
                 queryset = queryset.none()
-        
+
         if query:
             queryset = queryset.filter(
                 Q(nom__icontains=query) | Q(prenom__icontains=query) | Q(telephone__icontains=query)
@@ -70,6 +79,9 @@ class DetailClientView(LoginRequiredMixin, DetailView):
         from utilisateurs.models import ProfilLivreur
         
         obj = self.get_object()
+
+        if not obj.est_actif:
+            return HttpResponseForbidden('Accès refusé.')
         
         if est_gestionnaire(request.user):
             return super().dispatch(request, *args, **kwargs)
@@ -99,6 +111,6 @@ class CreerClientView(GestionnaireOuAdminRequis, LoginRequiredMixin, CreateView)
 
 class ModifierClientView(GestionnaireOuAdminRequis, LoginRequiredMixin, UpdateView):
     model = Client
-    fields = ['nom', 'prenom', 'telephone', 'email', 'adresse', 'quartier', 'commune', 'notes_internes', 'est_actif']
+    form_class = ClientForm
     template_name = 'clients/modifier.html'
     success_url = reverse_lazy('liste_clients')

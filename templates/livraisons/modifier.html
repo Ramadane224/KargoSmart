@@ -85,15 +85,15 @@
 
         <div>
           <label class="block text-xs font-semibold text-slate-500 mb-1">Adresse de départ</label>
-          <input type="text" name="adresse_depart" value="{{ form.adresse_depart.value|default:'' }}"
+          <input id="adresse_depart" type="text" name="adresse_depart" value="{{ form.adresse_depart.value|default:'' }}"
             class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <input type="hidden" name="latitude_depart" value="{{ form.latitude_depart.value|default:'' }}">
-          <input type="hidden" name="longitude_depart" value="{{ form.longitude_depart.value|default:'' }}">
+          <input id="lat_depart" type="hidden" name="latitude_depart" value="{{ form.latitude_depart.value|default:'' }}">
+          <input id="lng_depart" type="hidden" name="longitude_depart" value="{{ form.longitude_depart.value|default:'' }}">
         </div>
 
         <div>
           <label class="block text-xs font-semibold text-slate-500 mb-1">Adresse d'arrivée</label>
-          <input type="text" name="adresse_arrivee" value="{{ form.adresse_arrivee.value|default:'' }}"
+          <input id="adresse_arrivee" type="text" name="adresse_arrivee" value="{{ form.adresse_arrivee.value|default:'' }}"
             class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
           <input type="hidden" name="latitude_arrivee" id="lat_arrivee" value="{{ form.latitude_arrivee.value|default:'' }}">
           <input type="hidden" name="longitude_arrivee" id="lng_arrivee" value="{{ form.longitude_arrivee.value|default:'' }}">
@@ -110,6 +110,26 @@
           <textarea name="notes_livreur" rows="2"
             class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">{{ form.notes_livreur.value|default:'' }}</textarea>
         </div>
+
+        <div class="rounded-2xl bg-slate-50 p-4 border border-slate-200">
+          <div class="flex items-center justify-between gap-3">
+            <div>
+              <p class="text-sm font-semibold text-slate-700">Carte du trajet</p>
+              <p class="mt-1 text-xs text-slate-500">Affiche la distance entre départ et arrivée.</p>
+            </div>
+            <button id="modifier-map-fullscreen" type="button"
+              class="rounded-xl bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-slate-800">
+              Plein écran
+            </button>
+          </div>
+          <div id="modifier-map" class="mt-4 h-64 w-full rounded-2xl border border-slate-200 bg-slate-100"></div>
+          <div id="modifier-map-message" class="mt-3 text-sm text-slate-500"></div>
+          {% if object.distance_km %}
+          <div class="mt-3 rounded-2xl bg-white p-3 text-sm text-slate-700 shadow-sm">
+            Distance enregistrée : <strong>{{ object.distance_km }} km</strong> · Durée estimée : <strong>{{ object.duree_estimee_min }} min</strong>
+          </div>
+          {% endif %}
+        </div>
       </div>
     </div>
 
@@ -125,4 +145,380 @@
     </div>
   </form>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  document.addEventListener('DOMContentLoaded', function () {
+    var mapEl = document.getElementById('modifier-map');
+    if (!mapEl) return;
+
+    var latDepInput = document.querySelector('input[name="latitude_depart"]');
+    var lngDepInput = document.querySelector('input[name="longitude_depart"]');
+    var latArrInput = document.querySelector('input[name="latitude_arrivee"]');
+    var lngArrInput = document.querySelector('input[name="longitude_arrivee"]');
+    if (!latDepInput || !lngDepInput || !latArrInput || !lngArrInput) {
+      mapEl.innerHTML = '<div class="flex h-full items-center justify-center text-sm text-slate-500">Coordonnées manquantes.</div>';
+      return;
+    }
+
+    function parseCoord(input) {
+      var value = parseFloat(input.value);
+      return Number.isFinite(value) ? value : null;
+    }
+
+    var latDep = parseCoord(latDepInput);
+    var lngDep = parseCoord(lngDepInput);
+    var latArr = parseCoord(latArrInput);
+    var lngArr = parseCoord(lngArrInput);
+    var departAddressInput = document.getElementById('adresse_depart');
+    var arriveeAddressInput = document.getElementById('adresse_arrivee');
+    var messageEl = document.getElementById('modifier-map-message');
+
+    mapEl.style.minHeight = '16rem';
+    mapEl.innerHTML = '';
+
+    function setMapMessage(text, warning) {
+      if (!messageEl) return;
+      messageEl.textContent = text;
+      messageEl.className = 'mt-3 text-sm ' + (warning ? 'text-amber-600' : 'text-slate-500');
+    }
+
+    async function forwardGeocode(query) {
+      try {
+        var res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(query)}&accept-language=fr`);
+        var data = await res.json();
+        if (data.length === 0) return null;
+        return {
+          lat: parseFloat(data[0].lat),
+          lng: parseFloat(data[0].lon),
+          display_name: data[0].display_name,
+        };
+      } catch (err) {
+        return null;
+      }
+    }
+
+    async function geocodeField(inputEl, latEl, lngEl, label) {
+      if (!inputEl || !inputEl.value.trim()) return false;
+      var coords = await forwardGeocode(inputEl.value.trim());
+      if (!coords) return false;
+      latEl.value = coords.lat.toFixed(6);
+      lngEl.value = coords.lng.toFixed(6);
+      setMapMessage(label + ' positionné automatiquement par géocodage.', false);
+      return true;
+    }
+
+    function syncCoordinates() {
+      latDep = parseCoord(latDepInput);
+      lngDep = parseCoord(lngDepInput);
+      latArr = parseCoord(latArrInput);
+      lngArr = parseCoord(lngArrInput);
+    }
+
+    var map = null;
+    var departMarker = null;
+    var arriveeMarker = null;
+    var route = null;
+
+    async function initMap(coords) {
+      try {
+        map = L.map(mapEl).setView(coords || [9.5370, -13.6773], coords ? 12 : 11);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+          attribution: '© OpenStreetMap © CARTO',
+          subdomains: 'abcd',
+          maxZoom: 19,
+        }).addTo(map);
+        setTimeout(function () { map.invalidateSize(); }, 250);
+        return map;
+      } catch (e) {
+        mapEl.innerHTML = '<div class="flex h-full items-center justify-center text-sm text-red-500">Impossible d’afficher la carte.</div>';
+        console.error(e);
+        return null;
+      }
+    }
+
+    async function renderMap() {
+      if (!map) {
+        var initialized = await initMap((latDep !== null && lngDep !== null) ? [latDep, lngDep] : null);
+        if (!initialized) return;
+      }
+
+      departMarker = null;
+      arriveeMarker = null;
+      route = null;
+
+      function createMarker(coords, label, iconEmoji) {
+        return L.marker([coords.lat, coords.lng], {
+          icon: L.divIcon({
+            className: '',
+            html: `<div style="font-size:22px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))">${iconEmoji}</div>`,
+            iconSize: [28, 28],
+            iconAnchor: [14, 28],
+          }),
+          draggable: true,
+        }).addTo(map).bindPopup(label);
+      }
+
+      function updateRoute() {
+        var dep = departMarker ? departMarker.getLatLng() : null;
+        var arr = arriveeMarker ? arriveeMarker.getLatLng() : null;
+        if (route) {
+          route.remove();
+          route = null;
+        }
+        if (dep && arr) {
+          route = L.polyline([[dep.lat, dep.lng], [arr.lat, arr.lng]], {
+            color: '#2563eb', weight: 4, opacity: 0.8, dashArray: '8 6',
+          }).addTo(map);
+          map.fitBounds(route.getBounds(), { padding: [24, 24] });
+          latDepInput.value = dep.lat.toFixed(6);
+          lngDepInput.value = dep.lng.toFixed(6);
+          latArrInput.value = arr.lat.toFixed(6);
+          lngArrInput.value = arr.lng.toFixed(6);
+          setMapMessage('Glissez les marqueurs ou cliquez sur la carte pour réajuster le trajet.');
+        } else if (dep || arr) {
+          var target = dep || arr;
+          map.setView([target.lat, target.lng], 12);
+          setMapMessage('Glissez le marqueur pour ajuster ou cliquez ailleurs pour positionner le second point.');
+        } else {
+          setMapMessage('Cliquez sur la carte pour ajouter le départ, puis l’arrivée.');
+        }
+      }
+
+      function bindMarker(marker, type) {
+        marker.on('dragend', function () {
+          updateRoute();
+        });
+      }
+
+      function addOrMoveMarker(type, coords, label, emoji) {
+        var marker = type === 'depart' ? departMarker : arriveeMarker;
+        if (marker) {
+          marker.setLatLng([coords.lat, coords.lng]).bindPopup(label).openPopup();
+        } else {
+          marker = createMarker(coords, label, emoji);
+          bindMarker(marker, type);
+        }
+        if (type === 'depart') departMarker = marker;
+        else arriveeMarker = marker;
+      }
+
+      if (latDep !== null && lngDep !== null) {
+        addOrMoveMarker('depart', { lat: latDep, lng: lngDep }, 'Départ', '🏁');
+      }
+      if (latArr !== null && lngArr !== null) {
+        addOrMoveMarker('arrivee', { lat: latArr, lng: lngArr }, 'Arrivée', '📍');
+      }
+      updateRoute();
+
+      map.on('click', async function (e) {
+        var target = e.latlng;
+        if (!departMarker) {
+          departMarker = createMarker(target, 'Départ', '🏁');
+          bindMarker(departMarker, 'depart');
+          latDepInput.value = target.lat.toFixed(6);
+          lngDepInput.value = target.lng.toFixed(6);
+          document.getElementById('adresse_depart').value = 'Position sélectionnée';
+        } else if (!arriveeMarker) {
+          arriveeMarker = createMarker(target, 'Arrivée', '📍');
+          bindMarker(arriveeMarker, 'arrivee');
+          latArrInput.value = target.lat.toFixed(6);
+          lngArrInput.value = target.lng.toFixed(6);
+          document.getElementById('adresse_arrivee').value = 'Position sélectionnée';
+        } else {
+          var depDist = map.distance(target, departMarker.getLatLng());
+          var arrDist = map.distance(target, arriveeMarker.getLatLng());
+          if (depDist < arrDist) {
+            departMarker.setLatLng(target).openPopup();
+          } else {
+            arriveeMarker.setLatLng(target).openPopup();
+          }
+        }
+        updateRoute();
+      });
+    }
+
+    function openFullscreenMap() {
+      var overlay = document.createElement('div');
+      overlay.id = 'modifier-map-fullscreen-overlay';
+      overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.92);z-index:9999;display:flex;flex-direction:column;padding:1rem;';
+
+      var header = document.createElement('div');
+      header.style.cssText = 'display:flex;align-items:center;justify-between;margin-bottom:0.75rem;';
+      header.innerHTML = '<div><span style="color:#f8fafc;font-size:1rem;font-weight:600;">Carte en plein écran</span><div style="font-size:0.85rem;color:#cbd5e1;">Glissez les marqueurs ou cliquez pour déplacer les points.</div></div>';
+
+      var closeBtn = document.createElement('button');
+      closeBtn.type = 'button';
+      closeBtn.textContent = 'Fermer';
+      closeBtn.style.cssText = 'background:#ffffff;color:#0f172a;border:none;border-radius:999px;padding:0.6rem 1rem;font-weight:600;cursor:pointer;';
+      closeBtn.addEventListener('click', function () {
+        if (fullscreenMap) {
+          fullscreenMap.remove();
+          fullscreenMap = null;
+        }
+        overlay.remove();
+        if (map) map.invalidateSize();
+      });
+      header.appendChild(closeBtn);
+
+      var fullscreenMapEl = document.createElement('div');
+      fullscreenMapEl.style.cssText = 'flex:1;border-radius:1rem;overflow:hidden;background:#e2e8f0;';
+      fullscreenMapEl.id = 'modifier-map-fullscreen-panel';
+
+      overlay.appendChild(header);
+      overlay.appendChild(fullscreenMapEl);
+      document.body.appendChild(overlay);
+
+      var fullscreenMap = L.map(fullscreenMapEl).setView(map.getCenter(), map.getZoom());
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '© OpenStreetMap © CARTO',
+        subdomains: 'abcd',
+        maxZoom: 19,
+      }).addTo(fullscreenMap);
+
+      function cloneMarker(sourceMarker, emoji) {
+        if (!sourceMarker) return null;
+        var latlng = sourceMarker.getLatLng();
+        return L.marker([latlng.lat, latlng.lng], {
+          icon: L.divIcon({
+            className: '',
+            html: `<div style="font-size:22px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))">${emoji}</div>`,
+            iconSize: [28, 28],
+            iconAnchor: [14, 28],
+          }),
+          draggable: true,
+        }).addTo(fullscreenMap);
+      }
+
+      var fullDepart = cloneMarker(departMarker, '🏁');
+      var fullArrivee = cloneMarker(arriveeMarker, '📍');
+      var fullRoute = null;
+
+      function refreshFullRoute() {
+        if (fullRoute) fullRoute.remove();
+        if (fullDepart && fullArrivee) {
+          fullRoute = L.polyline([fullDepart.getLatLng(), fullArrivee.getLatLng()], {
+            color: '#2563eb', weight: 4, opacity: 0.8, dashArray: '8 6',
+          }).addTo(fullscreenMap);
+          fullscreenMap.fitBounds(fullRoute.getBounds(), { padding: [24, 24] });
+        }
+      }
+
+      function syncMarker(source, target) {
+        if (!source || !target) return;
+        target.setLatLng(source.getLatLng());
+      }
+
+      if (fullDepart) {
+        fullDepart.on('dragend', function () {
+          if (departMarker) departMarker.setLatLng(fullDepart.getLatLng());
+          updateRoute();
+          refreshFullRoute();
+        });
+      }
+      if (fullArrivee) {
+        fullArrivee.on('dragend', function () {
+          if (arriveeMarker) arriveeMarker.setLatLng(fullArrivee.getLatLng());
+          updateRoute();
+          refreshFullRoute();
+        });
+      }
+
+      fullscreenMap.on('click', function (e) {
+        var target = e.latlng;
+        if (!fullDepart) {
+          fullDepart = cloneMarker({ getLatLng: function () { return target; } }, '🏁');
+          if (departMarker) departMarker.setLatLng(target);
+        } else if (!fullArrivee) {
+          fullArrivee = cloneMarker({ getLatLng: function () { return target; } }, '📍');
+          if (arriveeMarker) arriveeMarker.setLatLng(target);
+        } else {
+          var depDist = fullscreenMap.distance(target, fullDepart.getLatLng());
+          var arrDist = fullscreenMap.distance(target, fullArrivee.getLatLng());
+          if (depDist < arrDist) {
+            fullDepart.setLatLng(target);
+            if (departMarker) departMarker.setLatLng(target);
+          } else {
+            fullArrivee.setLatLng(target);
+            if (arriveeMarker) arriveeMarker.setLatLng(target);
+          }
+        }
+        updateRoute();
+        refreshFullRoute();
+      });
+
+      refreshFullRoute();
+      fullscreenMap.invalidateSize();
+    }
+
+    function handleAddressBlur(inputEl, latEl, lngEl, label) {
+      if (!inputEl) return;
+      inputEl.addEventListener('blur', function () {
+        if (!inputEl.value.trim()) return;
+        geocodeField(inputEl, latEl, lngEl, label).then(function (found) {
+          if (found) {
+            syncCoordinates();
+            renderMap();
+          }
+        });
+      });
+    }
+
+    handleAddressBlur(departAddressInput, latDepInput, lngDepInput, 'Départ');
+    handleAddressBlur(arriveeAddressInput, latArrInput, lngArrInput, 'Arrivée');
+
+    var fullscreenButton = document.getElementById('modifier-map-fullscreen');
+    if (fullscreenButton) {
+      fullscreenButton.addEventListener('click', function () {
+        if (map) openFullscreenMap();
+      });
+    }
+
+    if (latDep !== null && lngDep !== null && latArr !== null && lngArr !== null) {
+      renderMap();
+    } else {
+      var addressPromises = [];
+      if ((latDep === null || lngDep === null) && document.getElementById('adresse_depart').value.trim()) {
+        addressPromises.push(forwardGeocode(document.getElementById('adresse_depart').value.trim()).then(function (coords) {
+          if (coords) {
+            latDep = coords.lat;
+            lngDep = coords.lng;
+            document.getElementById('lat_depart').value = coords.lat.toFixed(6);
+            document.getElementById('lng_depart').value = coords.lng.toFixed(6);
+            return true;
+          }
+          return false;
+        }));
+      }
+      if ((latArr === null || lngArr === null) && document.getElementById('adresse_arrivee').value.trim()) {
+        addressPromises.push(forwardGeocode(document.getElementById('adresse_arrivee').value.trim()).then(function (coords) {
+          if (coords) {
+            latArr = coords.lat;
+            lngArr = coords.lng;
+            document.getElementById('lat_arrivee').value = coords.lat.toFixed(6);
+            document.getElementById('lng_arrivee').value = coords.lng.toFixed(6);
+            return true;
+          }
+          return false;
+        }));
+      }
+
+      Promise.all(addressPromises).then(function (results) {
+        if (latDep !== null && lngDep !== null && latArr !== null && lngArr !== null) {
+          renderMap();
+        } else if ((latDep !== null && lngDep !== null) || (latArr !== null && lngArr !== null)) {
+          renderMap();
+          setMapMessage('Le point restant peut être ajouté en cliquant sur la carte.');
+        } else {
+          renderMap();
+          setMapMessage('Cliquez sur la carte pour placer le départ, puis l’arrivée.');
+        }
+      }).catch(function () {
+        renderMap();
+        setMapMessage('Carte disponible ; cliquez pour définir les points.');
+      });
+    }
+  });
+</script>
 {% endblock %}

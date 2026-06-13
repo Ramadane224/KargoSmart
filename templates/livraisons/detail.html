@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block title %}{{ livraison.code_livraison }} — KargoSmart{% endblock %}
 {% block page_title %}Livraison {{ livraison.code_livraison }}{% endblock %}
 
@@ -34,7 +35,6 @@
     <div class="rounded-2xl bg-white p-4 shadow-sm">
       <div class="mb-3 flex items-center justify-between">
         <h2 class="font-semibold text-slate-900">🗺️ Suivi GPS</h2>
-        <!-- Barre de progression -->
         <div class="flex items-center gap-2">
           <div class="h-2 w-32 overflow-hidden rounded-full bg-slate-200">
             <div id="progression-bar" class="h-full rounded-full bg-blue-500 transition-all duration-500" style="width:0%"></div>
@@ -42,9 +42,26 @@
           <span id="progression-text" class="text-xs font-medium text-slate-600">0%</span>
         </div>
       </div>
-      <div id="map-tracking" class="h-72 w-full rounded-xl overflow-hidden bg-slate-100"></div>
+      <div id="map-tracking"
+        class="h-72 w-full rounded-xl overflow-hidden bg-slate-100 relative"
+        data-livraison-id="{{ livraison.pk }}"
+        data-lat-depart="{{ livraison.latitude_depart|default_if_none:'' }}"
+        data-lng-depart="{{ livraison.longitude_depart|default_if_none:'' }}"
+        data-lat-arrivee="{{ livraison.latitude_arrivee|default_if_none:'' }}"
+        data-lng-arrivee="{{ livraison.longitude_arrivee|default_if_none:'' }}"
+        data-lat-livreur="{% if position_livreur %}{{ position_livreur.latitude }}{% endif %}"
+        data-lng-livreur="{% if position_livreur %}{{ position_livreur.longitude }}{% endif %}"
+        data-progression="{% if position_livreur %}{{ position_livreur.progression }}{% else %}0{% endif %}"
+        data-statut="{{ livraison.statut }}">
+        <div id="map-tracking-placeholder" class="absolute inset-0 flex items-center justify-center text-sm text-slate-500">
+          Chargement de la carte...
+        </div>
+      </div>
+      <div id="map-tracking-status" class="mt-3 text-xs font-medium text-slate-500">Statut du suivi : en attente de chargement...</div>
+      <div id="map-tracking-debug" class="mt-1 text-xs text-slate-400">Debug : initialisation non démarrée.</div>
+      <p class="mt-3 text-sm text-slate-500">Carte de suivi en temps réel. La position affichée s’actualise automatiquement toutes les 5 secondes.</p>
 
-      {% if livraison.livreur and livraison.statut not in 'LIVREE,ANNULEE,ECHOUEE' %}
+      {% if request.user.role == 'LIVREUR' and livraison.livreur and livraison.livreur.profil == request.user and livraison.statut != 'LIVREE' and livraison.statut != 'ANNULEE' and livraison.statut != 'ECHOUEE' %}
       <div class="mt-3 flex items-center gap-3">
         <button id="btn-simuler"
           class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50">
@@ -99,36 +116,38 @@
     </div>
 
     <!-- Assigner / Réassigner livreur -->
-    {% if livraison.statut in 'EN_ATTENTE,ASSIGNEE' %}
-    <div class="rounded-2xl bg-white p-6 shadow-sm border border-slate-100">
-      <h2 class="mb-4 font-semibold text-slate-900">
-        {% if livraison.livreur %}🔄 Réassigner le livreur{% else %}👤 Assigner un livreur{% endif %}
-      </h2>
-      {% if livreurs_disponibles %}
-      <form id="form-assigner" class="flex gap-3">
-        {% csrf_token %}
-        <select name="livreur_id" class="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-          <option value="">— Choisir —</option>
-          {% for livreur in livreurs_disponibles %}
-          <option value="{{ livreur.pk }}" {% if livraison.livreur.pk == livreur.pk %}selected{% endif %}>
-            {{ livreur.profil.get_full_name|default:livreur.profil.username }} · {{ livreur.get_type_vehicule_display }} · ★{{ livreur.note_moyenne }}
-          </option>
-          {% endfor %}
-        </select>
-        <button type="submit" class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 whitespace-nowrap">
-          Assigner
-        </button>
-      </form>
-      {% else %}
-      <p class="text-sm text-slate-400">⚠️ Aucun livreur actif disponible.</p>
-      <a href="/utilisateurs/liste/" class="mt-2 inline-block text-xs text-blue-600 hover:underline">Gérer les livreurs →</a>
+    {% if request.user.role == 'ADMINISTRATEUR' or request.user.role == 'GESTIONNAIRE' %}
+      {% if livraison.statut == 'EN_ATTENTE' or livraison.statut == 'ASSIGNEE' %}
+      <div class="rounded-2xl bg-white p-6 shadow-sm border border-slate-100">
+        <h2 class="mb-4 font-semibold text-slate-900">
+          {% if livraison.livreur %}🔄 Réassigner le livreur{% else %}👤 Assigner un livreur{% endif %}
+        </h2>
+        {% if livreurs_disponibles %}
+        <form id="form-assigner" class="flex gap-3" method="post" action="{% url 'assigner_livreur' livraison.pk %}">
+          {% csrf_token %}
+          <select name="livreur_id" class="flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <option value="">— Choisir —</option>
+            {% for livreur in livreurs_disponibles %}
+            <option value="{{ livreur.pk }}" {% if livraison.livreur.pk == livreur.pk %}selected{% endif %}>
+              {{ livreur.profil.get_full_name|default:livreur.profil.username }} · {{ livreur.get_type_vehicule_display }} · ★{{ livreur.note_moyenne }}
+            </option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 whitespace-nowrap">
+            Assigner
+          </button>
+        </form>
+        {% else %}
+        <p class="text-sm text-slate-400">⚠️ Aucun livreur actif disponible.</p>
+        <a href="/utilisateurs/liste/" class="mt-2 inline-block text-xs text-blue-600 hover:underline">Gérer les livreurs →</a>
+        {% endif %}
+      </div>
       {% endif %}
-    </div>
     {% endif %}
 
   </div>
 
-  <!-- Colonne droite : historique -->
+  <!-- Colonne droite -->
   <div class="space-y-6">
     <div class="rounded-2xl bg-white p-6 shadow-sm">
       <h2 class="mb-4 font-semibold text-slate-900">📋 Historique</h2>
@@ -152,22 +171,24 @@
       </div>
     </div>
 
-    <!-- Changer statut manuel -->
-    {% if livraison.statut not in 'LIVREE,ANNULEE,ECHOUEE' %}
-    <div class="rounded-2xl bg-white p-6 shadow-sm">
-      <h2 class="mb-4 font-semibold text-slate-900">Changer statut</h2>
-      <form id="form-statut" class="space-y-3">
-        {% csrf_token %}
-        <select name="nouveau_statut" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
-          {% for val, label in transitions_valides %}
-          <option value="{{ val }}">{{ label }}</option>
-          {% endfor %}
-        </select>
-        <button type="submit" class="w-full rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
-          Mettre à jour
-        </button>
-      </form>
-    </div>
+    <!-- Changer statut -->
+    {% if request.user.role == 'ADMINISTRATEUR' or request.user.role == 'GESTIONNAIRE' %}
+      {% if livraison.statut != 'LIVREE' and livraison.statut != 'ANNULEE' and livraison.statut != 'ECHOUEE' %}
+      <div class="rounded-2xl bg-white p-6 shadow-sm">
+        <h2 class="mb-4 font-semibold text-slate-900">Changer statut</h2>
+        <form id="form-statut" class="space-y-3">
+          {% csrf_token %}
+          <select name="nouveau_statut" class="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm">
+            {% for val, label in transitions_valides %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="w-full rounded-xl bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700">
+            Mettre à jour
+          </button>
+        </form>
+      </div>
+      {% endif %}
     {% endif %}
 
     <!-- Paiement Mobile -->
@@ -176,7 +197,7 @@
       <h2 class="mb-4 font-semibold text-slate-900">💳 Paiement mobile</h2>
       <div id="paiement-statut">
         {% if livraison.paiement %}
-          {% if livraison.paiement.statut == 'EN_ATTENTE' %}
+          {% if livraison.paiement.statut == 'PENDING' %}
           <div class="rounded-xl bg-amber-50 border border-amber-200 p-3 text-sm text-amber-700 mb-3">
             ⏳ En attente — Réf: <strong>{{ livraison.paiement.reference }}</strong>
           </div>
@@ -190,9 +211,27 @@
               ✗ Échouer
             </button>
           </div>
-          {% elif livraison.paiement.statut == 'CONFIRME' %}
+          {% elif livraison.paiement.statut == 'SUCCESS' %}
           <div class="rounded-xl bg-green-50 border border-green-200 p-3 text-sm text-green-700">
             ✅ Payé — Réf: <strong>{{ livraison.paiement.reference }}</strong>
+          </div>
+          {% elif livraison.paiement.statut == 'FAILED' %}
+          <div class="rounded-xl bg-red-50 border border-red-200 p-3 text-sm text-red-700 mb-3">
+            ⚠️ Paiement échoué — Réf: <strong>{{ livraison.paiement.reference }}</strong>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="confirmerPaiement('confirmer')"
+              class="flex-1 rounded-xl bg-green-600 py-2 text-xs font-semibold text-white hover:bg-green-700">
+              ✓ Marquer comme payé
+            </button>
+            <button onclick="confirmerPaiement('echouer')"
+              class="flex-1 rounded-xl bg-red-50 py-2 text-xs font-semibold text-red-600 hover:bg-red-100">
+              ✗ Toujours échoué
+            </button>
+          </div>
+          {% else %}
+          <div class="rounded-xl bg-slate-50 border border-slate-200 p-3 text-sm text-slate-700 mb-3">
+            ℹ️ Paiement en cours — statut : <strong>{{ livraison.paiement.statut }}</strong>
           </div>
           {% endif %}
         {% else %}
@@ -234,86 +273,246 @@
 {% endblock %}
 
 {% block extra_js %}
+{# ── Données Django isolées du JS — élimine tous les warnings du linter ── #}
+<script type="application/json" id="livraison-data">
+{
+  "pk":         {{ livraison.pk }},
+  "statut":     "{{ livraison.statut }}",
+  "latDepart":  {% if livraison.latitude_depart %}{{ livraison.latitude_depart }}{% else %}null{% endif %},
+  "lngDepart":  {% if livraison.longitude_depart %}{{ livraison.longitude_depart }}{% else %}null{% endif %},
+  "latArrivee": {% if livraison.latitude_arrivee %}{{ livraison.latitude_arrivee }}{% else %}null{% endif %},
+  "lngArrivee": {% if livraison.longitude_arrivee %}{{ livraison.longitude_arrivee }}{% else %}null{% endif %},
+  "latLivreur": {% if position_livreur %}{{ position_livreur.latitude }}{% else %}null{% endif %},
+  "lngLivreur": {% if position_livreur %}{{ position_livreur.longitude }}{% else %}null{% endif %},
+  "progression": {% if position_livreur %}{{ position_livreur.progression }}{% else %}0{% endif %}
+}
+</script>
+
 <script>
-  // Carte tracking
-  initTrackingMap('map-tracking', {
-    livraisonId: {{ livraison.pk }},
-    latDepart:  {{ livraison.latitude_depart|default:"null" }},
-    lngDepart:  {{ livraison.longitude_depart|default:"null" }},
-    latArrivee: {{ livraison.latitude_arrivee|default:"null" }},
-    lngArrivee: {{ livraison.longitude_arrivee|default:"null" }},
-    latLivreur: {% if position_livreur %}{{ position_livreur.latitude }}{% else %}null{% endif %},
-    lngLivreur: {% if position_livreur %}{{ position_livreur.longitude }}{% else %}null{% endif %},
-    statut: '{{ livraison.statut }}',
-  });
+/* ── Lecture des données Django ── */
+var _liv = JSON.parse(document.getElementById('livraison-data').textContent);
 
-  // Assigner livreur
-  const formAssigner = document.getElementById('form-assigner');
-  if (formAssigner) {
-    formAssigner.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = formAssigner.querySelector('button[type=submit]');
-      btn.disabled = true; btn.textContent = '⏳ En cours...';
-      const fd = new FormData(formAssigner);
-      const res = await fetch('/livraisons/{{ livraison.pk }}/assigner/', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (data.success) { showToast('Livreur assigné ✅', 'success'); location.reload(); }
-      else { showToast('Erreur : ' + (data.error || 'assignation impossible'), 'error'); btn.disabled = false; btn.textContent = 'Assigner'; }
-    });
-  }
-
-  // Changer statut
-  const formStatut = document.getElementById('form-statut');
-  if (formStatut) {
-    formStatut.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const btn = formStatut.querySelector('button[type=submit]');
-      btn.disabled = true; btn.textContent = '⏳ En cours...';
-      const fd = new FormData(formStatut);
-      const res = await fetch('/livraisons/{{ livraison.pk }}/statut/', { method: 'POST', body: fd });
-      const data = await res.json();
-      if (data.success) { showToast('Statut mis à jour ✅', 'success'); location.reload(); }
-      else { showToast('Transition non autorisée', 'error'); btn.disabled = false; btn.textContent = 'Mettre à jour'; }
-    });
-  }
-
-  // Paiement mobile
-  let opSelectionne = 'ORANGE';
-  function selectOp(op) {
-    opSelectionne = op;
-    document.getElementById('operateur-input').value = op;
-    document.getElementById('btn-orange').className = 'rounded-xl border-2 py-3 text-xs font-bold transition-colors ' +
-      (op === 'ORANGE' ? 'border-orange-400 bg-orange-100 text-orange-700' : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-orange-50 hover:border-orange-400');
-    document.getElementById('btn-mtn').className = 'rounded-xl border-2 py-3 text-xs font-bold transition-colors ' +
-      (op === 'MTN' ? 'border-yellow-400 bg-yellow-100 text-yellow-700' : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-yellow-50 hover:border-yellow-400');
-  }
-  window.selectOp = selectOp;
-
-  const formPaiement = document.getElementById('form-paiement');
-  if (formPaiement) {
-    formPaiement.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const fd = new FormData(formPaiement);
-      const res = await fetch('/livraisons/{{ livraison.pk }}/paiement/', { method:'POST', body:fd });
-      const data = await res.json();
-      if (data.success) {
-        showToast(data.message, 'info');
-        setTimeout(() => location.reload(), 1500);
-      } else showToast('Erreur paiement', 'error');
-    });
-  }
-
-  async function confirmerPaiement(action) {
-    const fd = new FormData();
-    fd.append('csrfmiddlewaretoken', document.cookie.match(/csrftoken=([^;]+)/)?.[1] || '');
-    fd.append('action', action);
-    const res = await fetch('/livraisons/{{ livraison.pk }}/paiement/confirmer/', { method:'POST', body:fd });
-    const data = await res.json();
-    if (data.success) {
-      showToast(action === 'confirmer' ? 'Paiement confirmé ✅' : 'Paiement échoué', action === 'confirmer' ? 'success' : 'error');
-      setTimeout(() => location.reload(), 1200);
+/* ── Initialisation de la carte tracking ── */
+(function () {
+  var placeholder = document.getElementById('map-tracking-placeholder');
+  var status = document.getElementById('map-tracking-status');
+  function setStatus(text, isError) {
+    if (status) {
+      status.textContent = 'Statut du suivi : ' + text;
+      status.className = 'mt-3 text-xs font-medium ' + (isError ? 'text-red-600' : 'text-slate-500');
     }
   }
-  window.confirmerPaiement = confirmerPaiement;
+
+  function initTracking() {
+    if (placeholder) {
+      placeholder.textContent = 'Initialisation de la carte en cours...';
+    }
+    setStatus('initialisation en cours...');
+
+    if (typeof initTrackingMap !== 'function') {
+      var debug = document.getElementById('map-tracking-debug');
+      if (placeholder) {
+        placeholder.textContent = 'Erreur : initTrackingMap introuvable.';
+      }
+      setStatus('initTrackingMap introuvable', true);
+      if (debug) {
+        debug.textContent = 'Debug : initTrackingMap manquant, tentative de chargement du script externe.';
+      }
+      var script = document.createElement('script');
+      script.src = '{% static "js/carte_tracking.js" %}?v=5';
+      script.onload = function() {
+        console.debug('Script carte_tracking chargé dynamiquement');
+        if (debug) {
+          debug.textContent = 'Debug : script externe chargé, réessai d’initialisation.';
+        }
+        if (typeof initTrackingMap === 'function') {
+          initTracking();
+        } else if (debug) {
+          debug.textContent = 'Debug : initTrackingMap toujours introuvable après chargement.';
+        }
+      };
+      script.onerror = function() {
+        console.error('Échec de chargement dynamique de carte_tracking.js');
+        if (debug) {
+          debug.textContent = 'Debug : échec de chargement dynamique de carte_tracking.js.';
+        }
+      };
+      document.body.appendChild(script);
+      return;
+    }
+
+    var debug = document.getElementById('map-tracking-debug');
+    if (debug) {
+      debug.textContent = 'Debug : initTrackingMap trouvé, démarrage.';
+    }
+    console.debug('Démarrage de initTrackingMap');
+    var map = initTrackingMap('map-tracking', {
+      livraisonId: _liv.pk,
+      latDepart:   _liv.latDepart,
+      lngDepart:   _liv.lngDepart,
+      latArrivee:  _liv.latArrivee,
+      lngArrivee:  _liv.lngArrivee,
+      latLivreur:  _liv.latLivreur,
+      lngLivreur:  _liv.lngLivreur,
+      statut:      _liv.statut,
+    });
+
+    if (!map) {
+      if (placeholder) {
+        placeholder.textContent = 'Impossible de créer la carte.';
+      }
+      setStatus('échec de création de la carte', true);
+      console.error('Impossible de créer la carte de suivi');
+      return;
+    }
+
+    setStatus('carte prête', false);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initTracking);
+  } else {
+    initTracking();
+  }
+})();
+
+/* ── Utilitaire cookie CSRF ── */
+function getCookie(name) {
+  var value = '; ' + document.cookie;
+  var parts = value.split('; ' + name + '=');
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return '';
+}
+
+/* ── Toast notification ── */
+function showToast(message, type) {
+  var colors = { success: 'bg-emerald-600', error: 'bg-red-600', info: 'bg-blue-600', warning: 'bg-amber-500' };
+  var toast = document.createElement('div');
+  toast.className = 'fixed bottom-6 right-6 z-50 flex items-center gap-3 rounded-2xl px-5 py-3 text-sm font-medium text-white shadow-lg translate-y-4 opacity-0 transition-all duration-300 ' + (colors[type] || colors.info);
+  toast.textContent = message;
+  document.body.appendChild(toast);
+  requestAnimationFrame(function () { toast.classList.remove('translate-y-4', 'opacity-0'); });
+  setTimeout(function () {
+    toast.classList.add('translate-y-4', 'opacity-0');
+    setTimeout(function () { toast.remove(); }, 300);
+  }, 3500);
+}
+
+/* ── Assigner livreur ── */
+var formAssigner = document.getElementById('form-assigner');
+if (formAssigner) {
+  formAssigner.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var btn = formAssigner.querySelector('button[type="submit"]');
+    var orig = btn.textContent;
+    btn.disabled = true; btn.textContent = '⏳ En cours...';
+    var fd = new FormData(formAssigner);
+    try {
+      var res = await fetch('/livraisons/' + _liv.pk + '/assigner/', {
+        method: 'POST',
+        headers: { 'X-Requested-With': 'XMLHttpRequest' },
+        body: fd
+      });
+      var data = await res.json();
+      if (data.success) { showToast('Livreur assigné ✅', 'success'); location.reload(); }
+      else { showToast('Erreur : ' + (data.error || 'assignation impossible'), 'error'); btn.disabled = false; btn.textContent = orig; }
+    } catch (err) {
+      showToast('Erreur réseau', 'error'); btn.disabled = false; btn.textContent = orig;
+    }
+  });
+}
+
+/* ── Changer statut ── */
+var formStatut = document.getElementById('form-statut');
+if (formStatut) {
+  formStatut.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var select = formStatut.querySelector('select[name="nouveau_statut"]');
+    if (!select || !select.value) {
+      showToast('Aucune transition disponible', 'error');
+      return;
+    }
+    var btn = formStatut.querySelector('button[type="submit"]');
+    var orig = btn.textContent;
+    btn.disabled = true; btn.textContent = '⏳ En cours...';
+    var fd = new FormData(formStatut);
+    try {
+      var res = await fetch('/livraisons/' + _liv.pk + '/statut/', { method: 'POST', body: fd });
+      var data = await res.json();
+      if (data.success) {
+        showToast('Statut mis à jour ✅', 'success');
+        setTimeout(function () { location.reload(); }, 800);
+      } else {
+        showToast('Erreur : ' + (data.error || 'non autorisé'), 'error');
+        btn.disabled = false; btn.textContent = orig;
+      }
+    } catch (err) {
+      showToast('Erreur réseau', 'error');
+      btn.disabled = false;
+      btn.textContent = orig;
+    }
+  });
+}
+
+/* ── Sélecteur opérateur paiement ── */
+function selectOp(op) {
+  document.getElementById('operateur-input').value = op;
+  var orangeCls = 'rounded-xl border-2 py-3 text-xs font-bold transition-colors ';
+  document.getElementById('btn-orange').className = orangeCls +
+    (op === 'ORANGE' ? 'border-orange-400 bg-orange-100 text-orange-700' : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-orange-50 hover:border-orange-400');
+  document.getElementById('btn-mtn').className = orangeCls +
+    (op === 'MTN' ? 'border-yellow-400 bg-yellow-100 text-yellow-700' : 'border-slate-200 bg-slate-50 text-slate-500 hover:bg-yellow-50 hover:border-yellow-400');
+}
+window.selectOp = selectOp;
+
+/* ── Paiement mobile ── */
+var formPaiement = document.getElementById('form-paiement');
+if (formPaiement) {
+  formPaiement.addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var btn = formPaiement.querySelector('button[type="submit"]');
+    var orig = btn.textContent;
+    btn.disabled = true; btn.textContent = '⏳ Envoi...';
+    var fd = new FormData(formPaiement);
+    try {
+      var res = await fetch('/livraisons/' + _liv.pk + '/paiement/', { method: 'POST', body: fd });
+      if (!res.ok) {
+        showToast('Erreur serveur (' + res.status + ')', 'error');
+        btn.disabled = false; btn.textContent = orig;
+        return;
+      }
+      var data = await res.json();
+      if (data.success) {
+        showToast(data.message || 'Demande envoyée ✅', 'success');
+        setTimeout(function () { location.reload(); }, 1500);
+      } else {
+        showToast('Erreur : ' + (data.error || 'paiement impossible'), 'error');
+        btn.disabled = false; btn.textContent = orig;
+      }
+    } catch (err) {
+      showToast('Erreur réseau', 'error');
+      btn.disabled = false;
+      btn.textContent = orig;
+    }
+  });
+}
+
+/* ── Confirmer / Échouer paiement ── */
+async function confirmerPaiement(action) {
+  var fd = new FormData();
+  fd.append('csrfmiddlewaretoken', getCookie('csrftoken'));
+  fd.append('action', action);
+  try {
+    var res = await fetch('/livraisons/' + _liv.pk + '/paiement/confirmer/', { method: 'POST', body: fd });
+    var data = await res.json();
+    if (data.success) {
+      showToast(action === 'confirmer' ? 'Paiement confirmé ✅' : 'Paiement marqué échoué', action === 'confirmer' ? 'success' : 'error');
+      setTimeout(function () { location.reload(); }, 1200);
+    } else {
+      showToast('Erreur : ' + (data.error || 'action impossible'), 'error');
+    }
+  } catch (err) { showToast('Erreur réseau', 'error'); }
+}
+window.confirmerPaiement = confirmerPaiement;
 </script>
 {% endblock %}

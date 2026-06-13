@@ -8,8 +8,9 @@ const CONAKRY = [9.5370, -13.6773]; // Centre par défaut (Conakry, Guinée)
 function initDashboardMap(elementId) {
   const map = L.map(elementId, { zoomControl: true }).setView(CONAKRY, 13);
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap contributors',
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap © CARTO',
+    subdomains: 'abcd',
     maxZoom: 19,
   }).addTo(map);
 

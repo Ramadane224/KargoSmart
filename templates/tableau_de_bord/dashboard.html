@@ -124,13 +124,37 @@
 {% endblock %}
 
 {% block extra_js %}
+{# ── Données Django sérialisées en JSON — le linter JS ne les voit pas ── #}
+<script type="application/json" id="dashboard-data">
+{
+  "statuts": [
+    {{ livraisons_en_attente }},
+    {{ livraisons_assignees }},
+    {{ livraisons_en_route }},
+    {{ livraisons_en_cours }},
+    {{ livraisons_proche }},
+    {{ livraisons_terminees }},
+    {{ livraisons_annulees }}
+  ],
+  "serie7j": [
+    {% for point in livraisons_7j %}
+    { "date": "{{ point.date }}", "count": {{ point.count }} }{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ]
+}
+</script>
+
 <script>
+  /* ── Récupération des données Django ── */
+  const _data = JSON.parse(document.getElementById('dashboard-data').textContent);
+
+  /* ── Compteurs animés ── */
   function animateCounters() {
-    document.querySelectorAll('[data-target]').forEach(el => {
-      const target = Number(el.dataset.target || 0);
-      let count = 0;
-      const step = Math.max(1, Math.round(target / 40));
-      const interval = setInterval(() => {
+    document.querySelectorAll('[data-target]').forEach(function (el) {
+      var target = Number(el.dataset.target || 0);
+      var count = 0;
+      var step = Math.max(1, Math.round(target / 40));
+      var interval = setInterval(function () {
         count += step;
         if (count >= target) {
           el.textContent = target;
@@ -142,67 +166,88 @@
     });
   }
 
-  const ctxStatus = document.getElementById('chart-statuts');
+  /* ── Graphique donut — répartition des statuts ── */
+  var ctxStatus = document.getElementById('chart-statuts');
   new Chart(ctxStatus, {
     type: 'doughnut',
     data: {
-      labels: ['En attente','Assignée','En route','En cours','Proche','Livrée','Annulée'],
+      labels: ['En attente', 'Assignée', 'En route', 'En cours', 'Proche', 'Livrée', 'Annulée'],
       datasets: [{
-        data: [{{ livraisons_en_attente }},{{ livraisons_assignees }},{{ livraisons_en_route }},{{ livraisons_en_cours }},{{ livraisons_proche }},{{ livraisons_terminees }},{{ livraisons_annulees }}],
-        backgroundColor: ['#94a3b8','#3b82f6','#f59e0b','#f97316','#8b5cf6','#22c55e','#ef4444'],
+        data: _data.statuts,
+        backgroundColor: ['#94a3b8', '#3b82f6', '#f59e0b', '#f97316', '#8b5cf6', '#22c55e', '#ef4444'],
         borderColor: '#fff',
-        borderWidth: 2,
-      }],
+        borderWidth: 2
+      }]
     },
     options: {
       cutout: '70%',
-      plugins: { legend: { position: 'bottom', labels: { boxWidth: 10, padding: 16 } } },
-    },
+      plugins: {
+        legend: { position: 'bottom', labels: { boxWidth: 10, padding: 16 } }
+      }
+    }
   });
 
-  const ctx7j = document.getElementById('chart-7j');
+  /* ── Graphique ligne — 7 derniers jours ── */
+  var ctx7j = document.getElementById('chart-7j');
   new Chart(ctx7j, {
     type: 'line',
     data: {
-      labels: [{% for point in livraisons_7j %}'{{ point.date }}'{% if not forloop.last %},{% endif %}{% endfor %}],
+      labels: _data.serie7j.map(function (p) { return p.date; }),
       datasets: [{
         label: 'Livraisons',
-        data: [{% for point in livraisons_7j %}{{ point.count }}{% if not forloop.last %},{% endif %}{% endfor %}],
+        data: _data.serie7j.map(function (p) { return p.count; }),
         borderColor: '#2563eb',
         backgroundColor: 'rgba(59,130,246,0.15)',
         fill: true,
         tension: 0.35,
-        pointRadius: 4,
-      }],
+        pointRadius: 4
+      }]
     },
     options: {
       plugins: { legend: { display: false } },
       scales: {
         x: { grid: { display: false }, ticks: { color: '#475569' } },
-        y: { grid: { color: '#e2e8f0' }, ticks: { color: '#475569', stepSize: 1 } },
-      },
-    },
+        y: { grid: { color: '#e2e8f0' }, ticks: { color: '#475569', stepSize: 1 } }
+      }
+    }
   });
 
-  function initDashboardMap(elementId) {
-    const map = L.map(elementId, { zoomControl: true }).setView([9.5370, -13.6773], 12);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap contributors', maxZoom: 19 }).addTo(map);
+  /* ── Carte Leaflet — positions des livreurs ── */
+  function getCookie(name) {
+    var value = '; ' + document.cookie;
+    var parts = value.split('; ' + name + '=');
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return '';
+  }
 
-    const icon = L.divIcon({ className: '', html: '<div class="gps-marker-livreur">🛵</div>', iconSize: [32,32], iconAnchor: [16,16] });
-    const layer = L.layerGroup().addTo(map);
+  function initDashboardMap(elementId) {
+    var map = L.map(elementId, { zoomControl: true }).setView([9.5370, -13.6773], 12);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '© OpenStreetMap © CARTO',
+      subdomains: 'abcd',
+      maxZoom: 19
+    }).addTo(map);
+
+    var icon = L.divIcon({
+      className: '',
+      html: '<div class="gps-marker-livreur">🛵</div>',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16]
+    });
+    var layer = L.layerGroup().addTo(map);
 
     async function refresh() {
       try {
-        const response = await fetch('/api/gps/livreurs/', {
+        var response = await fetch('/api/gps/livreurs/', {
           credentials: 'same-origin',
-          headers: { 'X-CSRFToken': getCookie('csrftoken') },
+          headers: { 'X-CSRFToken': getCookie('csrftoken') }
         });
         if (!response.ok) throw new Error('Fetch error');
-        const positions = await response.json();
+        var positions = await response.json();
         layer.clearLayers();
-        positions.forEach(pos => {
-          const marker = L.marker([parseFloat(pos.latitude), parseFloat(pos.longitude)], { icon });
-          marker.bindPopup(`<strong>${pos.nom_livreur}</strong><br>${pos.vehicule}<br>${pos.progression}%`);
+        positions.forEach(function (pos) {
+          var marker = L.marker([parseFloat(pos.latitude), parseFloat(pos.longitude)], { icon: icon });
+          marker.bindPopup('<strong>' + pos.nom_livreur + '</strong><br>' + pos.vehicule + '<br>' + pos.progression + '%');
           layer.addLayer(marker);
         });
       } catch (error) {
@@ -214,7 +259,8 @@
     setInterval(refresh, 5000);
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
+  /* ── Init au chargement ── */
+  document.addEventListener('DOMContentLoaded', function () {
     animateCounters();
     initDashboardMap('map-dashboard');
   });

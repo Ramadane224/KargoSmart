@@ -20,7 +20,9 @@ class StatutLivraison(models.TextChoices):
     EN_ROUTE = 'EN_ROUTE', 'En route'
     EN_COURS = 'EN_COURS', 'En cours'
     PROCHE_DESTINATION = 'PROCHE_DESTINATION', 'Proche destination'
+    ARRIVEE = 'ARRIVEE', 'Arrivée'
     LIVREE = 'LIVREE', 'Livrée'
+    TERMINEE = 'TERMINEE', 'Terminée'
     ANNULEE = 'ANNULEE', 'Annulée'
     ECHOUEE = 'ECHOUEE', 'Échec de livraison'
 
@@ -137,21 +139,30 @@ class PositionLivreur(models.Model):
 
 class PaiementMobile(models.Model):
     """Simule un paiement Orange Money / MTN MoMo."""
-
     OPERATEUR_CHOICES = [('ORANGE', 'Orange Money'), ('MTN', 'MTN MoMo')]
+
+    # Statuts plus robustes pour workflows de paiement
+    STATUT_PENDING = 'PENDING'
+    STATUT_SUCCESS = 'SUCCESS'
+    STATUT_FAILED = 'FAILED'
+    STATUT_CANCELLED = 'CANCELLED'
+    STATUT_REFUNDED = 'REFUNDED'
+
     STATUT_CHOICES = [
-        ('EN_ATTENTE', 'En attente'),
-        ('CONFIRME', 'Confirmé'),
-        ('ECHOUE', 'Échoué'),
-        ('REMBOURSE', 'Remboursé'),
+        (STATUT_PENDING, 'En attente'),
+        (STATUT_SUCCESS, 'Confirmé'),
+        (STATUT_FAILED, 'Échoué'),
+        (STATUT_CANCELLED, 'Annulé'),
+        (STATUT_REFUNDED, 'Remboursé'),
     ]
 
     livraison = models.OneToOneField(Livraison, on_delete=models.CASCADE, related_name='paiement')
     operateur = models.CharField(max_length=10, choices=OPERATEUR_CHOICES)
     numero_telephone = models.CharField(max_length=20)
     montant = models.DecimalField(max_digits=12, decimal_places=0)
-    reference = models.CharField(max_length=20, unique=True)
-    statut = models.CharField(max_length=15, choices=STATUT_CHOICES, default='EN_ATTENTE')
+    reference = models.CharField(max_length=40, unique=True)
+    transaction_id = models.CharField(max_length=64, null=True, blank=True, unique=True)
+    statut = models.CharField(max_length=15, choices=STATUT_CHOICES, default=STATUT_PENDING)
     date_creation = models.DateTimeField(auto_now_add=True)
     date_confirmation = models.DateTimeField(null=True, blank=True)
 

@@ -5,6 +5,8 @@ from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.permissions import BasePermission, IsAuthenticated
 from rest_framework.response import Response
 
+from django.shortcuts import get_object_or_404
+
 from clients.models import Client
 from livraisons.models import Livraison, PositionLivreur, StatutLivraison, haversine_km
 from notifications.models import Notification
@@ -105,41 +107,46 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
 # ─── GPS ──────────────────────────────────────────────────────────────────────
 
 @api_view(['POST'])
-@permission_classes([IsAuthenticated, EstLivreur])
+@permission_classes([IsAuthenticated])  # Retirer EstLivreur
 def mettre_a_jour_position(request):
     """
-    Reçoit la position GPS d'un livreur et met à jour PositionLivreur.
-    Body JSON : { lat, lng, livraison_id (opt), progression (opt) }
+    Met à jour la position GPS.
+    - LIVREUR : utilise son propre profil.
+    - ADMIN/GESTIONNAIRE : utilise le livreur assigné à livraison_id (simulation).
     """
-    try:
-        livreur = request.user.profil_livreur
-    except ProfilLivreur.DoesNotExist:
-        return Response({'error': 'Utilisateur non livreur'}, status=status.HTTP_403_FORBIDDEN)
-
     lat = request.data.get('lat')
     lng = request.data.get('lng')
     if lat is None or lng is None:
-        return Response({'error': 'lat et lng requis'}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'error': 'lat et lng requis'}, status=400)
 
     livraison_id = request.data.get('livraison_id')
     progression = request.data.get('progression', 0)
+    user_role = getattr(request.user, 'role', None)
+
+    if user_role == 'LIVREUR':
+        try:
+            livreur = request.user.profil_livreur
+        except ProfilLivreur.DoesNotExist:
+            return Response({'error': 'Profil livreur introuvable'}, status=403)
+    elif user_role in ['ADMINISTRATEUR', 'GESTIONNAIRE']:
+        if not livraison_id:
+            return Response({'error': 'livraison_id requis pour la simulation'}, status=400)
+        try:
+            livraison_obj = Livraison.objects.select_related('livreur').get(pk=livraison_id)
+        except Livraison.DoesNotExist:
+            return Response({'error': 'Livraison introuvable'}, status=404)
+        if not livraison_obj.livreur:
+            return Response({'error': 'Aucun livreur assigné à cette livraison'}, status=400)
+        livreur = livraison_obj.livreur
+    else:
+        return Response({'error': 'Accès non autorisé'}, status=403)
 
     livraison = None
     if livraison_id:
         try:
-            livraison = Livraison.objects.get(pk=livraison_id, livreur=livreur)
+            livraison = Livraison.objects.get(pk=livraison_id)
         except Livraison.DoesNotExist:
-            return Response({'error': 'Livraison introuvable pour ce livreur.'}, status=status.HTTP_404_NOT_FOUND)
-
-        if livraison.statut not in [
-            StatutLivraison.EN_ROUTE,
-            StatutLivraison.EN_COURS,
-            StatutLivraison.PROCHE_DESTINATION,
-        ]:
-            return Response(
-                {'error': 'La livraison doit être en route, en cours ou proche de destination pour mettre à jour la position.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            pass
 
     position, _ = PositionLivreur.objects.update_or_create(
         livreur=livreur,
@@ -167,12 +174,30 @@ def positions_livreurs_actifs(request):
 @permission_classes([IsAuthenticated])
 def tracking_livraison(request, pk):
     """Retourne la position GPS du livreur pour une livraison donnée."""
-    livraison = Livraison.objects.select_related('livreur__profil').get(pk=pk)
+    livraison = get_object_or_404(Livraison.objects.select_related('livreur__profil', 'client'), pk=pk)
+
+    user_role = getattr(request.user, 'role', None)
+    if user_role in ['ADMINISTRATEUR', 'GESTIONNAIRE']:
+        pass
+    elif user_role == 'LIVREUR':
+        if not livraison.livreur or livraison.livreur.profil != request.user:
+            return Response({'error': 'Accès refusé'}, status=403)
+    elif user_role == 'CLIENT':
+        client = Client.objects.filter(email=request.user.email).first() or Client.objects.filter(telephone=request.user.telephone).first()
+        if not client or livraison.client != client:
+            return Response({'error': 'Accès refusé'}, status=403)
+    else:
+        return Response({'error': 'Accès refusé'}, status=403)
+
     data = LivraisonSerializer(livraison).data
     if livraison.livreur:
         try:
             pos = livraison.livreur.position_gps
-            data['position_livreur'] = PositionLivreurSerializer(pos).data
+            if pos.livraison_en_cours_id == livraison.pk:
+                data['position_livreur'] = PositionLivreurSerializer(pos).data
+            else:
+                data['position_livreur'] = None
+            
         except PositionLivreur.DoesNotExist:
             data['position_livreur'] = None
     return Response(data)
